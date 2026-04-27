@@ -1,17 +1,10 @@
-//
-//  FlickApp.swift
-//  Flick
-//
-//  Created by Rasmus Hauschild on 27/04/2026.
-//
-
 import SwiftUI
 
 @main
 struct FlickApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
+        Settings { EmptyView() }
     }
 }
