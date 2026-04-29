@@ -10,7 +10,7 @@ struct BlockFramesKey: PreferenceKey {
 
 struct PageView: View {
     @Environment(Store.self) private var store
-    let selectedDate: Date
+    let mode: PageMode
 
     @State private var blocks: [Block] = []
     @State private var pageID: String = ""
@@ -26,7 +26,19 @@ struct PageView: View {
     }
 
     private var isFreshDay: Bool {
-        blocks.count == 1 && (blocks.first?.text.isEmpty ?? false)
+        guard case .daily = mode else { return false }
+        return blocks.count == 1 && (blocks.first?.text.isEmpty ?? false)
+    }
+
+    private var isFreshPermanent: Bool {
+        guard case .permanent = mode else { return false }
+        return blocks.count == 1 && (blocks.first?.text.isEmpty ?? false)
+    }
+
+    private var firstRowPlaceholder: String? {
+        if isFreshDay { return "What are we doing today?" }
+        if isFreshPermanent { return "Quick notes…" }
+        return nil
     }
 
     var body: some View {
@@ -39,7 +51,7 @@ struct PageView: View {
                                 block: binding(for: block.id),
                                 focusedID: $focusedID,
                                 isSelected: selectedBlockIDs.contains(block.id),
-                                customPlaceholder: (block.id == blocks.first?.id && isFreshDay) ? "What are we doing today?" : nil,
+                                customPlaceholder: (block.id == blocks.first?.id) ? firstRowPlaceholder : nil,
                                 onSubmit: { insertBlock(after: block.id) },
                                 onInsertAbove: { insertBlock(before: block.id) },
                                 onDelete: { deleteBlock(id: block.id) },
@@ -72,9 +84,8 @@ struct PageView: View {
                     }
                 }
                 .onChange(of: focusedID) { _, id in
-                    if let id {
+                    if id != nil {
                         if !dragSelectionActive { selectedBlockIDs.removeAll() }
-                        withAnimation { proxy.scrollTo(id, anchor: .bottom) }
                         let collapse = {
                             if let editor = NSApp.keyWindow?.firstResponder as? NSTextView {
                                 let len = (editor.string as NSString).length
@@ -84,6 +95,7 @@ struct PageView: View {
                         collapse()
                         DispatchQueue.main.async(execute: collapse)
                     }
+                    _ = proxy
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .flickBackspacePressed)) { _ in
                     guard !selectedBlockIDs.isEmpty else { return }
@@ -125,7 +137,7 @@ struct PageView: View {
     }
 
     private func reload() {
-        let page = store.page(for: selectedDate)
+        let page = store.page(for: mode)
         pageID = page.id
         if page.blocks.isEmpty {
             let starter = Block(type: .note, text: "")

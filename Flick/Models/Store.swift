@@ -1,6 +1,18 @@
 import Foundation
 import Observation
 
+enum PageMode: Equatable, Hashable {
+    case daily(Date)
+    case permanent
+
+    var storageID: String {
+        switch self {
+        case .daily(let date): return Store.key(for: date)
+        case .permanent: return Store.permanentKey
+        }
+    }
+}
+
 @Observable
 class Store {
     var pages: [String: DayPage] = [:]
@@ -15,9 +27,13 @@ class Store {
         load()
     }
 
-    func page(for date: Date) -> DayPage {
-        let key = Self.key(for: date)
+    func page(for mode: PageMode) -> DayPage {
+        let key = mode.storageID
         return pages[key] ?? DayPage(id: key)
+    }
+
+    func page(for date: Date) -> DayPage {
+        page(for: .daily(date))
     }
 
     func hasContent(for date: Date) -> Bool {
@@ -33,6 +49,8 @@ class Store {
     static func key(for date: Date) -> String {
         date.formatted(.iso8601.year().month().day())
     }
+
+    static let permanentKey = "__permanent__"
 
     private func load() {
         guard

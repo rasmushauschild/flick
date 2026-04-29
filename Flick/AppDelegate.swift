@@ -54,9 +54,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "checklist", accessibilityDescription: "Flick")
-        statusItem.button?.action = #selector(toggleWindow)
-        statusItem.button?.target = self
+        statusItem.isVisible = true
+        statusItem.behavior = []
+        if let button = statusItem.button {
+            if let image = NSImage(systemSymbolName: "checklist", accessibilityDescription: "Flick") {
+                button.image = image
+            } else {
+                button.title = "Flick"
+            }
+            button.action = #selector(toggleWindow)
+            button.target = self
+        }
     }
 
     @objc private func toggleWindow() {
@@ -119,7 +127,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         container.autoresizingMask = [.width, .height]
 
         visualEffectView = NSVisualEffectView(frame: container.bounds)
-        visualEffectView.material = .popover
+        visualEffectView.material = .menu
         visualEffectView.blendingMode = .behindWindow
         visualEffectView.state = .active
         visualEffectView.autoresizingMask = [.width, .height]

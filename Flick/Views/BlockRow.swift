@@ -34,13 +34,21 @@ struct BlockRow: View {
                 .padding(.top, 1)
             }
 
-            TextField(placeholder, text: $block.text, axis: block.type == .title ? .horizontal : .vertical)
+            TextField("", text: $block.text, axis: block.type == .title ? .horizontal : .vertical)
                 .font(textFont)
                 .textFieldStyle(.plain)
                 .tint(.black)
                 .strikethrough(block.isChecked && block.type == .todo, color: .secondary)
                 .foregroundStyle(block.isChecked && block.type == .todo ? .tertiary : .primary)
                 .lineLimit(block.type == .title ? 1...1 : 1...8)
+                .overlay(alignment: .leading) {
+                    if block.text.isEmpty && focusedID == block.id, !placeholder.isEmpty {
+                        Text(placeholder)
+                            .font(textFont)
+                            .foregroundStyle(.tertiary)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .focused($focusedID, equals: block.id)
                 .onKeyPress(keys: [.return], phases: .down) { press in
                     if press.modifiers.contains(.shift) {
@@ -69,7 +77,8 @@ struct BlockRow: View {
                 }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 5)
+        .padding(.vertical, block.type == .title ? 0 : 5)
+        .frame(height: block.type == .title ? 44 : nil, alignment: .topLeading)
         .background(isSelected ? Color.accentColor.opacity(0.18) : Color.clear)
         .simultaneousGesture(
             TapGesture()
@@ -98,7 +107,7 @@ struct BlockRow: View {
 
     private var textFont: Font {
         switch block.type {
-        case .title: .system(size: 15, weight: .semibold)
+        case .title: .custom("NocturneSerifTest-SemiBold", size: 17)
         case .note, .todo: .system(size: 13)
         }
     }
