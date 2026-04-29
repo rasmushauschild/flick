@@ -38,6 +38,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupWindow()
         setupKeyMonitor()
         observeSettings()
+
+        // UI test bootstrap: auto-show the window so the test runner doesn't have to
+        // click the menu bar icon (which is awkward to automate).
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.isDocked = false
+                self.window.level = .normal
+                NSApp.activate(ignoringOtherApps: true)
+                self.window.center()
+                self.window.makeKeyAndOrderFront(nil)
+            }
+        }
     }
 
     private func setupKeyMonitor() {

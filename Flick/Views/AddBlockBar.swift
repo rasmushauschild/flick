@@ -17,6 +17,7 @@ struct AddBlockBar: View {
                 ) {
                     onConvert(.title)
                 }
+                .accessibilityIdentifier("convertButton.title")
 
                 ConvertButton(
                     systemImage: "text.alignleft",
@@ -25,6 +26,7 @@ struct AddBlockBar: View {
                 ) {
                     onConvert(.note)
                 }
+                .accessibilityIdentifier("convertButton.note")
 
                 ConvertButton(
                     systemImage: "checkmark.circle",
@@ -33,6 +35,7 @@ struct AddBlockBar: View {
                 ) {
                     onConvert(.todo)
                 }
+                .accessibilityIdentifier("convertButton.todo")
             }
 
             HStack {

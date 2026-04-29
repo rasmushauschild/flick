@@ -6,19 +6,52 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		EB8DF16B3ABD306362AEE0E6 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4AE104494DF68344F687DAE2 /* Cocoa.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BCB1BADE00927AF10C264E27 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 70651BD72F9FD7850052EAF9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 70651BDE2F9FD7850052EAF9;
+			remoteInfo = Flick;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		4AE104494DF68344F687DAE2 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
 		70651BDF2F9FD7850052EAF9 /* Flick.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flick.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		854F3E9B3692954182462BF7 /* FlickUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = FlickUITests.xctest; path = .xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		55E8A6C4A03AE66E4654322C /* FlickUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			path = FlickUITests;
+			sourceTree = "<group>";
+		};
 		70651BE12F9FD7850052EAF9 /* Flick */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = Flick;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1779EFC7A38CB0E075D50B57 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EB8DF16B3ABD306362AEE0E6 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		70651BDC2F9FD7850052EAF9 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -34,6 +67,8 @@
 			children = (
 				70651BE12F9FD7850052EAF9 /* Flick */,
 				70651BE02F9FD7850052EAF9 /* Products */,
+				7ACE244ADE1F32822ED695E0 /* Frameworks */,
+				55E8A6C4A03AE66E4654322C /* FlickUITests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -41,8 +76,25 @@
 			isa = PBXGroup;
 			children = (
 				70651BDF2F9FD7850052EAF9 /* Flick.app */,
+				854F3E9B3692954182462BF7 /* FlickUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		7ACE244ADE1F32822ED695E0 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				9B0EFD7C5617B38441C3AB0E /* OS X */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		9B0EFD7C5617B38441C3AB0E /* OS X */ = {
+			isa = PBXGroup;
+			children = (
+				4AE104494DF68344F687DAE2 /* Cocoa.framework */,
+			);
+			name = "OS X";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -64,11 +116,30 @@
 				70651BE12F9FD7850052EAF9 /* Flick */,
 			);
 			name = Flick;
-			packageProductDependencies = (
-			);
 			productName = Flick;
 			productReference = 70651BDF2F9FD7850052EAF9 /* Flick.app */;
 			productType = "com.apple.product-type.application";
+		};
+		878F41CB7B268203E552DDA5 /* FlickUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C64E1C184279C0212D6CB7E2 /* Build configuration list for PBXNativeTarget "FlickUITests" */;
+			buildPhases = (
+				D7B3ECF10DA08474A1F908E9 /* Sources */,
+				1779EFC7A38CB0E075D50B57 /* Frameworks */,
+				FD45845F9DAC9B9E437F3799 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F93146A1EC1D654933732B60 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				55E8A6C4A03AE66E4654322C /* FlickUITests */,
+			);
+			name = FlickUITests;
+			productName = FlickUITests;
+			productReference = 854F3E9B3692954182462BF7 /* FlickUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
@@ -82,6 +153,10 @@
 				TargetAttributes = {
 					70651BDE2F9FD7850052EAF9 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					878F41CB7B268203E552DDA5 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = 70651BDE2F9FD7850052EAF9;
 					};
 				};
 			};
@@ -100,12 +175,20 @@
 			projectRoot = "";
 			targets = (
 				70651BDE2F9FD7850052EAF9 /* Flick */,
+				878F41CB7B268203E552DDA5 /* FlickUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		70651BDD2F9FD7850052EAF9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FD45845F9DAC9B9E437F3799 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,9 +205,52 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D7B3ECF10DA08474A1F908E9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		F93146A1EC1D654933732B60 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = Flick;
+			target = 70651BDE2F9FD7850052EAF9 /* Flick */;
+			targetProxy = BCB1BADE00927AF10C264E27 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		41F1B48A45C7699A0404F595 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.7;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xolo.FlickUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGETED_DEVICE_FAMILY = "";
+				TEST_TARGET_NAME = Flick;
+			};
+			name = Debug;
+		};
 		70651BE82F9FD7860052EAF9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -305,6 +431,33 @@
 			};
 			name = Release;
 		};
+		77215B3CB43CEA267A992459 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.7;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xolo.FlickUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGETED_DEVICE_FAMILY = "";
+				TEST_TARGET_NAME = Flick;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -322,6 +475,15 @@
 			buildConfigurations = (
 				70651BEB2F9FD7860052EAF9 /* Debug */,
 				70651BEC2F9FD7860052EAF9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C64E1C184279C0212D6CB7E2 /* Build configuration list for PBXNativeTarget "FlickUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				77215B3CB43CEA267A992459 /* Release */,
+				41F1B48A45C7699A0404F595 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

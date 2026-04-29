@@ -20,10 +20,18 @@ class Store {
     private let fileURL: URL
 
     init() {
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = support.appendingPathComponent("Flick", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        fileURL = dir.appendingPathComponent("pages.json")
+        let isUITesting = ProcessInfo.processInfo.arguments.contains("--ui-testing")
+        let baseDir: URL
+        if isUITesting {
+            // Use an isolated, ephemeral location so tests start with a clean store.
+            baseDir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("FlickUITests-\(UUID().uuidString)", isDirectory: true)
+        } else {
+            baseDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                .appendingPathComponent("Flick", isDirectory: true)
+        }
+        try? FileManager.default.createDirectory(at: baseDir, withIntermediateDirectories: true)
+        fileURL = baseDir.appendingPathComponent("pages.json")
         load()
     }
 
