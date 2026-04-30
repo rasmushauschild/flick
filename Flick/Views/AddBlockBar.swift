@@ -45,7 +45,7 @@ struct AddBlockBar: View {
                 } label: {
                     Image(systemName: "gearshape")
                         .font(.system(size: 12))
-                        .foregroundStyle(.quaternary)
+                        .foregroundStyle(.tertiary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                 }
@@ -76,7 +76,7 @@ private struct ConvertButton: View {
                     Text(t).font(.system(size: 13, weight: .bold, design: .monospaced))
                 }
             }
-            .foregroundStyle(isActive ? AnyShapeStyle(Color.primary) : AnyShapeStyle(.quaternary))
+            .foregroundStyle(isActive ? AnyShapeStyle(Color.primary) : AnyShapeStyle(.tertiary))
             .opacity(isEnabled ? 1.0 : 0.35)
             .frame(width: 28, height: 28)
         }

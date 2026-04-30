@@ -52,7 +52,13 @@ struct PageView: View {
         while let last = toSave.last, last.type == .note, last.text.isEmpty, toSave.count > 1 {
             toSave.removeLast()
         }
-        guard toSave.contains(where: { !$0.text.isEmpty }) else { return }
+        // If every remaining block is empty or whitespace-only, treat the page as
+        // having no real content and remove it from the store entirely.
+        let hasRealContent = toSave.contains { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard hasRealContent else {
+            store.removePage(id: pageID)
+            return
+        }
         store.update(DayPage(id: pageID, blocks: toSave))
     }
 }

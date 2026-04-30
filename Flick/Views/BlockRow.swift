@@ -5,6 +5,7 @@ extension Notification.Name {
     static let flickMouseDown = Notification.Name("flickMouseDown")
     static let flickMouseDragged = Notification.Name("flickMouseDragged")
     static let flickMouseUp = Notification.Name("flickMouseUp")
+    static let flickClosePressed = Notification.Name("flickClosePressed")
 }
 
 struct BlockRow: View {

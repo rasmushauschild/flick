@@ -12,8 +12,8 @@ struct RootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Color.clear.frame(height: 5)
-            ZStack {
+            Color.clear.frame(height: 0)
+            Group {
                 if isPermanent {
                     Text("Notes")
                         .font(.system(size: 12, weight: .medium))
@@ -22,27 +22,28 @@ struct RootView: View {
                 } else {
                     DateScrubber(selectedDate: $selectedDate)
                 }
-
-                HStack {
-                    Spacer()
-                    Button {
-                        toggleMode()
-                    } label: {
-                        Image(systemName: isPermanent ? "calendar" : "note.text")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.quaternary)
-                            .frame(width: 28, height: 28)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.trailing, 6)
-                }
             }
+            .padding(.top, 0)
 
             PageView(mode: pageMode)
                 .id(pageMode)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(settings.isTransparent ? AnyShapeStyle(Color.clear) : AnyShapeStyle(Color.white))
+        .overlay(alignment: .topTrailing) {
+            Button {
+                toggleMode()
+            } label: {
+                Image(systemName: isPermanent ? "calendar" : "note.text")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 6)
+            .padding(.trailing, 7)
+            .ignoresSafeArea(.all, edges: .top)
+        }
         .onChange(of: selectedDate) { _, newDate in
             if !isPermanent {
                 pageMode = .daily(newDate)

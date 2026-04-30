@@ -39,6 +39,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupKeyMonitor()
         observeSettings()
 
+
         // UI test bootstrap: auto-show the window so the test runner doesn't have to
         // click the menu bar icon (which is awkward to automate).
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
@@ -164,7 +165,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - Docked state
 
     private func applyDockedState() {
-        window.standardWindowButton(.closeButton)?.isHidden = isDocked
+        let closeButton = window.standardWindowButton(.closeButton)
+        closeButton?.isHidden = isDocked
+        if !isDocked {
+            DispatchQueue.main.async { [weak self] in
+                self?.positionCloseButton()
+            }
+        }
         if isDocked {
             window.level = .normal
             startOutsideMonitor()
@@ -172,6 +179,39 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             window.level = .floating
             stopOutsideMonitor()
         }
+    }
+
+    private var closeButtonObserver: NSKeyValueObservation?
+    private var isReapplyingCloseButtonFrame = false
+
+    private func positionCloseButton() {
+        guard let close = window.standardWindowButton(.closeButton),
+              let titleBar = close.superview else { return }
+        let titleBarHeight = titleBar.bounds.height
+        let buttonHeight = close.frame.height
+        let target = NSPoint(x: 13, y: max(0, titleBarHeight - 13 - buttonHeight))
+        guard close.frame.origin != target else { return }
+        isReapplyingCloseButtonFrame = true
+        var frame = close.frame
+        frame.origin = target
+        close.frame = frame
+        isReapplyingCloseButtonFrame = false
+
+        if closeButtonObserver == nil {
+            closeButtonObserver = close.observe(\.frame, options: [.new, .old]) { [weak self] button, change in
+                guard let self,
+                      !self.isReapplyingCloseButtonFrame,
+                      change.newValue?.origin != change.oldValue?.origin else { return }
+                let goal = NSPoint(x: 13, y: max(0, (button.superview?.bounds.height ?? 0) - 13 - button.frame.height))
+                if button.frame.origin != goal {
+                    DispatchQueue.main.async { self.positionCloseButton() }
+                }
+            }
+        }
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        if !isDocked { positionCloseButton() }
     }
 
     private func startOutsideMonitor() {

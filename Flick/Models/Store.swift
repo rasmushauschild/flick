@@ -46,11 +46,17 @@ class Store {
 
     func hasContent(for date: Date) -> Bool {
         let key = Self.key(for: date)
-        return pages[key]?.blocks.contains(where: { !$0.text.isEmpty }) ?? false
+        guard let blocks = pages[key]?.blocks else { return false }
+        return blocks.contains { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
     func update(_ page: DayPage) {
         pages[page.id] = page
+        save()
+    }
+
+    func removePage(id: String) {
+        guard pages.removeValue(forKey: id) != nil else { return }
         save()
     }
 
