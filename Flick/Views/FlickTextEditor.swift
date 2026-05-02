@@ -414,9 +414,19 @@ final class FlickTextView: NSTextView {
     /// Fine-tune vs real text baseline/origin (drawn placeholder vs TextKit line fragment).
     private static let emptyPagePlaceholderDrawOffset = CGSize(width: -8, height: -9)
 
-    /// True for a pristine empty page: no visible text, and only the first line + trailing buffer (≤2 paragraphs). Extra newlines hide it.
+    /// True for a pristine empty **note** page: no visible text, only `.note` blocks (after stripping the trailing buffer), ≤2 paragraphs. Title/todo or extra newlines hide it.
     private func shouldShowEmptyPagePlaceholder() -> Bool {
         guard string.allSatisfy(\.isWhitespace) else { return false }
+
+        var content = BlockParser.blocks(from: attributedString())
+        while content.count > 1,
+              let last = content.last,
+              last.type == .note,
+              last.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            content.removeLast()
+        }
+        guard content.allSatisfy({ $0.type == .note }) else { return false }
+
         let ns = string as NSString
         if ns.length == 0 { return true }
         var paragraphCount = 0
