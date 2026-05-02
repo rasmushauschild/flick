@@ -14,13 +14,18 @@ enum BlockAttributes {
     static let todoIndent: CGFloat = 22
 
     static let titleFont: NSFont = {
-        if let font = NSFont(name: "NocturneSerifTest-SemiBold", size: 17) {
+        if let font = NSFont(name: "Inter-SemiBold", size: 24) {
             return font
         }
-        return NSFont.systemFont(ofSize: 17, weight: .semibold)
+        return NSFont.systemFont(ofSize: 24, weight: .semibold)
     }()
 
-    static let bodyFont: NSFont = NSFont.systemFont(ofSize: 13)
+    static let bodyFont: NSFont = {
+        if let font = NSFont(name: "Inter-Regular", size: 15) {
+            return font
+        }
+        return NSFont.systemFont(ofSize: 15)
+    }()
 
     static func font(for type: BlockType) -> NSFont {
         switch type {

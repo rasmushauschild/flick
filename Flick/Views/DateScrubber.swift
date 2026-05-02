@@ -7,7 +7,7 @@ struct DateScrubber: View {
     var body: some View {
         ZStack {
             Text(selectedDate.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.secondary)
                 .opacity(isHovering ? 0 : 1)
 
@@ -26,7 +26,6 @@ struct DateScrubber: View {
 
 private struct NumberStrip: View {
     @Binding var selectedDate: Date
-    @Environment(Store.self) private var store
 
     @State private var position = ScrollPosition()
     @State private var currentOffsetX: CGFloat = 0
@@ -72,8 +71,8 @@ private struct NumberStrip: View {
                 LinearGradient(
                     stops: [
                         .init(color: .clear, location: 0),
-                        .init(color: .black, location: 0.12),
-                        .init(color: .black, location: 0.88),
+                        .init(color: .black, location: 0.25),
+                        .init(color: .black, location: 0.75),
                         .init(color: .clear, location: 1)
                     ],
                     startPoint: .leading,
@@ -98,17 +97,16 @@ private struct NumberStrip: View {
     private func dateCell(for date: Date) -> some View {
         let isSelected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
         let isToday = Calendar.current.isDate(date, inSameDayAs: today)
-        let hasContent = store.hasContent(for: date)
         VStack(spacing: 3) {
             Text(date.formatted(.dateTime.day()))
-                .font(.system(size: isSelected ? 14 : 12,
+                .font(.system(size: isSelected ? 20 : 15,
                               weight: isToday ? .bold : .regular))
                 .foregroundStyle(isSelected ? Color.primary : Color(white: 0.72))
                 .frame(width: itemWidth)
 
             Circle()
                 .frame(width: 3, height: 3)
-                .foregroundStyle(Color.primary.opacity(hasContent ? 0.4 : 0))
+                .foregroundStyle(Color.primary.opacity(isToday ? 0.4 : 0))
         }
         .contentShape(Rectangle())
         .onTapGesture { selectedDate = date }

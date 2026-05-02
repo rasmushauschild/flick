@@ -32,6 +32,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     let store = Store()
     let settings = AppSettings()
+    let modeToggleBridge = ModeToggleBridge()
+
+    private var modeToggleTitlebarHost: NSHostingController<AnyView>!
+    private var modeToggleTitlebarAccessory: NSTitlebarAccessoryViewController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
@@ -76,9 +80,63 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             } else {
                 button.title = "Flick"
             }
-            button.action = #selector(toggleWindow)
+            button.action = #selector(statusItemClicked(_:))
             button.target = self
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
+    }
+
+    @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            showStatusMenu(from: sender)
+        } else {
+            toggleWindow()
+        }
+    }
+
+    private func showStatusMenu(from button: NSStatusBarButton) {
+        let menu = NSMenu()
+
+        let transparent = NSMenuItem(
+            title: "Transparent background",
+            action: #selector(toggleTransparent),
+            keyEquivalent: ""
+        )
+        transparent.target = self
+        transparent.state = settings.isTransparent ? .on : .off
+        menu.addItem(transparent)
+
+        let launch = NSMenuItem(
+            title: "Launch at startup",
+            action: #selector(toggleLaunchAtStartup),
+            keyEquivalent: ""
+        )
+        launch.target = self
+        launch.state = settings.launchAtStartup ? .on : .off
+        menu.addItem(launch)
+
+        menu.addItem(.separator())
+
+        let quit = NSMenuItem(
+            title: "Quit Flick",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        menu.addItem(quit)
+
+        // Standard "transient menu" pattern: assign the menu, click the button to
+        // pop it up, then clear it so left-click still routes to our action.
+        statusItem.menu = menu
+        button.performClick(nil)
+        statusItem.menu = nil
+    }
+
+    @objc private func toggleTransparent() {
+        settings.isTransparent.toggle()
+    }
+
+    @objc private func toggleLaunchAtStartup() {
+        settings.launchAtStartup.toggle()
     }
 
     @objc private func toggleWindow() {
@@ -137,6 +195,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.minSize = NSSize(width: 240, height: 360)
         window.delegate = self
 
+        // Opting into NSToolbar on macOS 26 (Tahoe) gets us the larger
+        // rounded-window corner radius automatically.
+        let toolbar = NSToolbar(identifier: "main")
+        toolbar.displayMode = .iconOnly
+        window.toolbar = toolbar
+        window.toolbarStyle = .unifiedCompact
+
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 453))
         container.autoresizingMask = [.width, .height]
 
@@ -152,6 +217,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 RootView()
                     .environment(store)
                     .environment(settings)
+                    .environment(modeToggleBridge)
             )
         )
         hostingController.view.frame = container.bounds
@@ -159,7 +225,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         container.addSubview(hostingController.view)
 
         window.contentView = container
+        setupModeToggleTitlebarAccessory()
         updateAppearance()
+    }
+
+    /// SwiftUI `.toolbar` does not show on the window when `NSHostingController` is only a subview of a custom `contentView`.
+    private func setupModeToggleTitlebarAccessory() {
+        let accessory = NSTitlebarAccessoryViewController()
+        accessory.layoutAttribute = .trailing
+
+        modeToggleTitlebarHost = NSHostingController(
+            rootView: AnyView(
+                ModeToggleTitlebarView()
+                    .environment(modeToggleBridge)
+            )
+        )
+        modeToggleTitlebarHost.view.frame = NSRect(x: 0, y: 0, width: 36, height: 28)
+
+        accessory.view = modeToggleTitlebarHost.view
+        modeToggleTitlebarAccessory = accessory
+        window.addTitlebarAccessoryViewController(accessory)
     }
 
     // MARK: - Docked state

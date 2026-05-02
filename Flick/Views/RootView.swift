@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(ModeToggleBridge.self) private var modeToggleBridge
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var pageMode: PageMode = .daily(Calendar.current.startOfDay(for: Date()))
 
@@ -23,26 +24,19 @@ struct RootView: View {
                     DateScrubber(selectedDate: $selectedDate)
                 }
             }
-            .padding(.top, 0)
 
             PageView(mode: pageMode)
                 .id(pageMode)
         }
+        .padding(15)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(settings.isTransparent ? AnyShapeStyle(Color.clear) : AnyShapeStyle(Color.white))
-        .overlay(alignment: .topTrailing) {
-            Button {
-                toggleMode()
-            } label: {
-                Image(systemName: isPermanent ? "calendar" : "note.text")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 28, height: 28)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 6)
-            .padding(.trailing, 7)
-            .ignoresSafeArea(.all, edges: .top)
+        .onAppear {
+            modeToggleBridge.performToggle = { toggleMode() }
+            modeToggleBridge.isPermanent = isPermanent
+        }
+        .onChange(of: pageMode) { _, _ in
+            modeToggleBridge.isPermanent = isPermanent
         }
         .onChange(of: selectedDate) { _, newDate in
             if !isPermanent {

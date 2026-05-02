@@ -4,83 +4,70 @@ struct AddBlockBar: View {
     let focusedBlockType: BlockType?
     var onConvert: (BlockType) -> Void
 
-    @Environment(AppSettings.self) private var settings
-    @State private var showSettings = false
-
     var body: some View {
-        ZStack {
-            HStack(spacing: 4) {
-                ConvertButton(
-                    monoText: "T",
-                    isActive: focusedBlockType == .title,
-                    isEnabled: true
-                ) {
-                    onConvert(.title)
-                }
-                .accessibilityIdentifier("convertButton.title")
-
-                ConvertButton(
-                    systemImage: "text.alignleft",
-                    isActive: focusedBlockType == .note,
-                    isEnabled: true
-                ) {
-                    onConvert(.note)
-                }
-                .accessibilityIdentifier("convertButton.note")
-
-                ConvertButton(
-                    systemImage: "checkmark.circle",
-                    isActive: focusedBlockType == .todo,
-                    isEnabled: true
-                ) {
-                    onConvert(.todo)
-                }
-                .accessibilityIdentifier("convertButton.todo")
+        HStack(spacing: 4) {
+            ConvertButton(
+                imageName: "bar.title",
+                isActive: focusedBlockType == .title
+            ) {
+                onConvert(.title)
             }
+            .accessibilityIdentifier("convertButton.title")
 
-            HStack {
-                Spacer()
-                Button {
-                    showSettings.toggle()
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $showSettings, arrowEdge: .bottom) {
-                    SettingsPanel()
-                        .environment(settings)
-                }
+            ConvertButton(
+                imageName: "bar.note",
+                isActive: focusedBlockType == .note
+            ) {
+                onConvert(.note)
             }
+            .accessibilityIdentifier("convertButton.note")
+
+            ConvertButton(
+                imageName: "bar.todo",
+                iconSide: 16,
+                isActive: focusedBlockType == .todo
+            ) {
+                onConvert(.todo)
+            }
+            .accessibilityIdentifier("convertButton.todo")
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .modifier(GlassPillBackground())
         .padding(.bottom, 8)
     }
 }
 
+private struct GlassPillBackground: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.glassEffect(.regular, in: Capsule())
+        } else {
+            content
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(Capsule().stroke(Color.primary.opacity(0.06), lineWidth: 0.5))
+        }
+    }
+}
+
 private struct ConvertButton: View {
-    var systemImage: String? = nil
-    var monoText: String? = nil
+    let imageName: String
+    /// Drawn icon size; todo art reads smaller than title at the same frame, so it uses a larger value.
+    var iconSide: CGFloat = 14
     let isActive: Bool
-    let isEnabled: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Group {
-                if let sys = systemImage {
-                    Image(systemName: sys).font(.system(size: 13))
-                } else if let t = monoText {
-                    Text(t).font(.system(size: 13, weight: .bold, design: .monospaced))
-                }
-            }
-            .foregroundStyle(isActive ? AnyShapeStyle(Color.primary) : AnyShapeStyle(.tertiary))
-            .opacity(isEnabled ? 1.0 : 0.35)
-            .frame(width: 28, height: 28)
+            Image(imageName)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: iconSide, height: iconSide)
+                .foregroundStyle(isActive ? AnyShapeStyle(Color.primary) : AnyShapeStyle(.tertiary))
+                .frame(width: 28, height: 28)
         }
         .buttonStyle(.plain)
-        .disabled(!isEnabled)
     }
 }

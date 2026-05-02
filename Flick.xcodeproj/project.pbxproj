@@ -23,21 +23,17 @@
 /* Begin PBXFileReference section */
 		4AE104494DF68344F687DAE2 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
 		70651BDF2F9FD7850052EAF9 /* Flick.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flick.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		854F3E9B3692954182462BF7 /* FlickUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = FlickUITests.xctest; path = .xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		854F3E9B3692954182462BF7 /* FlickUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlickUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		55E8A6C4A03AE66E4654322C /* FlickUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = FlickUITests;
 			sourceTree = "<group>";
 		};
 		70651BE12F9FD7850052EAF9 /* Flick */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = Flick;
 			sourceTree = "<group>";
 		};
