@@ -1,13 +1,15 @@
 import SwiftUI
 
 struct RootView: View {
-    /// Fixed width for close placeholder / mode toggle; date strip only lays out *between* these so digits never sit under the icons.
+    /// Fixed width for close placeholder / mode toggle in the header row.
     private let headerChromeSlotWidth: CGFloat = 32
 
     @Environment(ModeToggleBridge.self) private var modeToggleBridge
     @Environment(WindowDockState.self) private var dock
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var pageMode: PageMode = .daily(Calendar.current.startOfDay(for: Date()))
+    /// Header-wide hover state: drives the scrubber's reveal so the user can scroll/scrub from anywhere in the header.
+    @State private var headerHover: Bool = false
 
     private var isPermanent: Bool {
         if case .permanent = pageMode { return true }
@@ -26,7 +28,7 @@ struct RootView: View {
                     }
                 } else {
                     headerChrome {
-                        DateScrubber(selectedDate: $selectedDate)
+                        DateScrubber(selectedDate: $selectedDate, isActive: headerHover)
                     }
                 }
             }
@@ -62,38 +64,52 @@ struct RootView: View {
         }
     }
 
-    /// HStack (not ZStack): center fills only the space *between* chrome so the scrubber never draws under the close dot or mode button.
+    /// Leading/trailing overlays only (fixed width). A full-width `HStack` + `Spacer` still sat on top of the
+    /// scrubber and swallowed clicks on macOS even with `allowsHitTesting(false)` on the spacer.
     @ViewBuilder
     private func headerChrome<Center: View>(@ViewBuilder center: () -> Center) -> some View {
-        HStack(alignment: .center, spacing: 0) {
-            Group {
-                if dock.isDocked {
-                    Color.clear
-                } else {
-                    Button {
-                        dock.performClose()
-                    } label: {
-                        Circle()
-                            .fill(Color.red.opacity(0.92))
-                            .frame(width: 16, height: 16)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Close window")
-                    .contentShape(Circle())
-                    .accessibilityIdentifier("flickClose")
+        center()
+            .frame(maxWidth: .infinity)
+            .frame(height: 38)
+            .overlay(alignment: .leading) {
+                headerLeadingChrome
+                    .frame(width: headerChromeSlotWidth, height: 38, alignment: .center)
+                    .offset(y: -3)
+            }
+            .overlay(alignment: .trailing) {
+                ModeToggleChromeButton()
+                    .frame(width: headerChromeSlotWidth, height: 38, alignment: .center)
+                    .offset(y: -3)
+            }
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    headerHover = hovering
                 }
             }
-            .frame(width: headerChromeSlotWidth, height: 38)
-            .offset(y: -3)
+    }
 
-            center()
-                .frame(maxWidth: .infinity, alignment: .center)
-
-            ModeToggleChromeButton()
-                .frame(width: headerChromeSlotWidth, height: 38)
-                .offset(y: -3)
+    @ViewBuilder
+    private var headerLeadingChrome: some View {
+        Group {
+            if dock.isDocked {
+                Color.clear
+            } else {
+                Button {
+                    dock.performClose()
+                } label: {
+                    Circle()
+                        .fill(Color.red.opacity(0.92))
+                        .frame(width: 16, height: 16)
+                }
+                .buttonStyle(.plain)
+                .help("Close window")
+                .contentShape(Circle())
+                .accessibilityIdentifier("flickClose")
+            }
         }
-        .frame(height: 38)
+        // Docked: pass clicks/scroll through to the full-width scrubber. Floating: only the close control hits.
+        .allowsHitTesting(!dock.isDocked)
     }
 
     private func toggleMode() {
