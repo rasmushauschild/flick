@@ -8,6 +8,8 @@ struct PageView: View {
     @State private var blocks: [Block] = []
     @State private var pageID: String = ""
     @State private var focusedBlockType: BlockType? = nil
+    /// Window-base rect of the floating `AddBlockBar`, updated from an AppKit sizing view (SwiftUI owns hit testing over the editor).
+    @State private var toolStripCursor = ToolStripCursorState()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -26,8 +28,17 @@ struct PageView: View {
                     )
                 }
             )
+            .background(
+                ToolStripFrameReporter { toolStripCursor.stripRectInWindow = $0 }
+            )
         }
-        .onAppear { reload() }
+        .onAppear {
+            reload()
+            toolStripCursor.installMouseMonitor()
+        }
+        .onDisappear {
+            toolStripCursor.removeMouseMonitor()
+        }
         .onChange(of: blocks) { save() }
     }
 
@@ -58,5 +69,68 @@ struct PageView: View {
             return
         }
         store.update(DayPage(id: pageID, blocks: toSave))
+    }
+}
+
+// MARK: - Cursor over AddBlockBar (SwiftUI sits above NSTextView; local monitor + deferred set beats I-beam)
+
+private final class ToolStripCursorState {
+    var stripRectInWindow: CGRect = .zero
+    private var mouseMonitor: Any?
+
+    func installMouseMonitor() {
+        removeMouseMonitor()
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
+            guard let self else { return event }
+            var r = self.stripRectInWindow
+            guard r.width > 2, r.height > 2 else { return event }
+            r = r.insetBy(dx: -6, dy: -6)
+            if r.contains(event.locationInWindow) {
+                // Local monitors run before event delivery; NSTextView would still set I-beam afterward without async.
+                DispatchQueue.main.async {
+                    NSCursor.arrow.set()
+                }
+            }
+            return event
+        }
+    }
+
+    func removeMouseMonitor() {
+        if let mouseMonitor {
+            NSEvent.removeMonitor(mouseMonitor)
+            self.mouseMonitor = nil
+        }
+    }
+
+    deinit {
+        removeMouseMonitor()
+    }
+}
+
+private struct ToolStripFrameReporter: NSViewRepresentable {
+    var onWindowFrameChange: (CGRect) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let v = ToolStripFrameReportView()
+        v.onWindowFrameChange = onWindowFrameChange
+        return v
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? ToolStripFrameReportView)?.onWindowFrameChange = onWindowFrameChange
+    }
+}
+
+private final class ToolStripFrameReportView: NSView {
+    var onWindowFrameChange: ((CGRect) -> Void)?
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override var isOpaque: Bool { false }
+
+    override func layout() {
+        super.layout()
+        guard window != nil else { return }
+        onWindowFrameChange?(convert(bounds, to: nil))
     }
 }

@@ -96,6 +96,8 @@ struct FlickTextEditor: NSViewRepresentable {
         var parent: FlickTextEditor
         private var isApplyingProgrammaticChange = false
         private var conversionObserver: Any?
+        /// Insertion index last seen while editing; AddBlockBar taps can steal focus and move `selectedRange()` before conversion runs.
+        private var caretCharIndexForBarConversion: Int = 0
 
         init(_ parent: FlickTextEditor) {
             self.parent = parent
@@ -113,12 +115,14 @@ struct FlickTextEditor: NSViewRepresentable {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
+                guard let self else { return }
                 guard let raw = notification.object as? String,
                       let type = BlockType(rawValue: raw),
-                      let textView = self?.textView else { return }
-                textView.convertCurrentParagraph(to: type)
-                self?.syncBlocksFromStorage()
-                self?.updateFocusedBlockType()
+                      let textView = self.textView else { return }
+                textView.convertCurrentParagraph(to: type, barAnchorLocation: self.caretCharIndexForBarConversion)
+                // Conversion does not go through `textDidChange`; without a synchronous binding update,
+                // `updateNSView` can run with stale `blocks` and replace the edited storage (especially on the buffer line).
+                self.completeConversionEdits(in: textView)
             }
         }
 
@@ -129,6 +133,7 @@ struct FlickTextEditor: NSViewRepresentable {
             let attr = blocks.toAttributedString()
             textView.textStorage?.setAttributedString(attr)
             ensureTrailingBuffer(in: textView)
+            captureCaretAnchor(from: textView)
             updateFocusedBlockType()
         }
 
@@ -138,7 +143,16 @@ struct FlickTextEditor: NSViewRepresentable {
             ensureParagraphAttributes(in: textView)
             ensureTrailingBuffer(in: textView)
             syncBlocksFromStorage()
+            if textView.window?.firstResponder === textView {
+                captureCaretAnchor(from: textView)
+            }
             updateFocusedBlockType()
+        }
+
+        private func captureCaretAnchor(from textView: FlickTextView) {
+            let len = (textView.string as NSString).length
+            let loc = textView.selectedRange().location
+            caretCharIndexForBarConversion = max(0, min(loc, len))
         }
 
         /// Make sure the storage always ends with an empty .note paragraph. This is the
@@ -190,6 +204,9 @@ struct FlickTextEditor: NSViewRepresentable {
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
+            if let tv = textView, tv.window?.firstResponder === tv {
+                captureCaretAnchor(from: tv)
+            }
             updateFocusedBlockType()
         }
 
@@ -200,6 +217,21 @@ struct FlickTextEditor: NSViewRepresentable {
                 DispatchQueue.main.async { [weak self] in
                     self?.parent.blocks = newBlocks
                 }
+            }
+        }
+
+        /// After AddBlockBar conversion: reapply paragraph attrs, restore the trailing `.note` buffer if needed, and
+        /// push `blocks` / `focusedBlockType` immediately so SwiftUI does not overwrite storage from stale state.
+        private func completeConversionEdits(in textView: FlickTextView) {
+            ensureParagraphAttributes(in: textView)
+            ensureTrailingBuffer(in: textView)
+            let newBlocks = BlockParser.blocks(from: textView.attributedString())
+            if !FlickTextEditor.blocksHaveSameContent(newBlocks, parent.blocks) {
+                parent.blocks = newBlocks
+            }
+            let type = textView.currentParagraphBlockType()
+            if parent.focusedBlockType != type {
+                parent.focusedBlockType = type
             }
         }
 
@@ -275,10 +307,66 @@ struct FlickTextEditor: NSViewRepresentable {
     }
 }
 
+// MARK: - Trailing buffer selection clamp (must run inside `setSelectedRange` so mouse tracking never paints the caret on the buffer)
+
+fileprivate enum FlickTrailingBufferSelection {
+    /// Same criteria as `Coordinator.ensureTrailingBuffer`: last paragraph is an empty `.note`.
+    static func emptyNoteBufferRange(for textView: NSTextView) -> NSRange? {
+        guard let storage = textView.textStorage else { return nil }
+        let nsString = storage.string as NSString
+        let length = nsString.length
+        guard length > 0 else { return nil }
+        let lastParaRange = nsString.paragraphRange(for: NSRange(location: length - 1, length: 0))
+        let probe = max(0, min(lastParaRange.location, length - 1))
+        let attrs = storage.attributes(at: probe, effectiveRange: nil)
+        let raw = attrs[.flickBlockType] as? String ?? ""
+        let type = BlockType(rawValue: raw) ?? .note
+        var textLength = lastParaRange.length
+        if textLength > 0 {
+            let lastIdx = NSMaxRange(lastParaRange) - 1
+            let lastChar = nsString.substring(with: NSRange(location: lastIdx, length: 1))
+            if lastChar == "\n" || lastChar == "\r" {
+                textLength -= 1
+            }
+        }
+        guard textLength == 0, type == .note else { return nil }
+        return lastParaRange
+    }
+
+    /// Maps any selection overlapping the buffer (or EOF past it) onto the last real paragraph; trims drags at the buffer boundary.
+    static func clampedRange(_ range: NSRange, for textView: NSTextView) -> NSRange {
+        guard let bufRange = emptyNoteBufferRange(for: textView) else { return range }
+        let bufStart = bufRange.location
+        let len = (textView.string as NSString).length
+        guard bufStart > 0 else { return range }
+        let target = bufStart - 1
+
+        let a = range.location
+        let b = a + range.length
+
+        if range.length == 0 {
+            if a >= bufStart && a <= len { return NSRange(location: target, length: 0) }
+            return range
+        }
+        if b <= bufStart { return range }
+        if a >= bufStart { return NSRange(location: target, length: 0) }
+        return NSRange(location: a, length: bufStart - a)
+    }
+}
+
 // MARK: - NSTextView subclass
 
 final class FlickTextView: NSTextView {
     override var acceptsFirstResponder: Bool { true }
+
+    override func setSelectedRange(_ charRange: NSRange, affinity: NSSelectionAffinity, stillSelecting stillSelectingFlag: Bool) {
+        let clamped = FlickTrailingBufferSelection.clampedRange(charRange, for: self)
+        if NSEqualRanges(clamped, charRange) {
+            super.setSelectedRange(charRange, affinity: affinity, stillSelecting: stillSelectingFlag)
+        } else {
+            super.setSelectedRange(clamped, affinity: affinity, stillSelecting: stillSelectingFlag)
+        }
+    }
 
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
@@ -544,13 +632,14 @@ final class FlickTextView: NSTextView {
 
     // MARK: Block conversion (called by AddBlockBar via notification)
 
-    func convertCurrentParagraph(to newType: BlockType) {
+    func convertCurrentParagraph(to newType: BlockType, barAnchorLocation: Int? = nil) {
         guard let storage = textStorage else { return }
         let nsString = storage.string as NSString
-        let sel = selectedRange()
-        // paragraphRange(for:) already includes the trailing terminator. Don't
-        // expand it — doing so would spill attributes onto the next paragraph.
-        let paraRange = nsString.paragraphRange(for: NSRange(location: min(sel.location, nsString.length), length: 0))
+        guard nsString.length > 0 else { return }
+        let anchor = barAnchorLocation ?? selectedRange().location
+        // `paragraphRange(for:)` + `len - 1` can attribute the *previous* paragraph at EOF; use the same
+        // boundary rules as `demoteEmptyTitleOrTodoToNote` (strict `<` + `atEndOfDocument`).
+        guard let (_, paraRange) = paragraphRanges(at: anchor, in: nsString) else { return }
 
         let block = Block(type: newType, text: "", isChecked: false)
         let attrs = BlockAttributes.attributes(for: block)
@@ -566,7 +655,9 @@ final class FlickTextView: NSTextView {
     func currentParagraphBlockType() -> BlockType? {
         guard let storage = textStorage, storage.length > 0 else { return nil }
         let sel = selectedRange()
-        let probe = max(0, min(sel.location, storage.length - 1))
+        let nsString = storage.string as NSString
+        guard let (_, enclosing) = paragraphRanges(at: sel.location, in: nsString) else { return nil }
+        let probe = max(0, min(enclosing.location, storage.length - 1))
         let attrs = storage.attributes(at: probe, effectiveRange: nil)
         guard let raw = attrs[.flickBlockType] as? String else { return nil }
         return BlockType(rawValue: raw)
@@ -589,7 +680,55 @@ final class FlickTextView: NSTextView {
 
     override func insertNewline(_ sender: Any?) {
         if demoteEmptyTitleOrTodoToNote() { return }
+
+        let shouldMakeNextLineNote = shouldInsertNoteAfterTitleReturn()
         super.insertNewline(sender)
+
+        if shouldMakeNextLineNote {
+            applyNoteAttributesToParagraph(at: selectedRange().location)
+            delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
+            needsDisplay = true
+            rebuildCheckboxTrackingAreas()
+        }
+    }
+
+    /// Plain Return on a non-empty title paragraph → new line should be a normal (`.note`) paragraph.
+    private func shouldInsertNoteAfterTitleReturn() -> Bool {
+        guard let storage = textStorage else { return false }
+        let nsString = storage.string as NSString
+        let sel = selectedRange()
+        guard sel.length == 0 else { return false }
+
+        let paraRange = nsString.paragraphRange(for: NSRange(location: min(sel.location, nsString.length), length: 0))
+        let probe = max(0, min(paraRange.location, storage.length - 1))
+        let attrs = storage.attributes(at: probe, effectiveRange: nil)
+        guard let raw = attrs[.flickBlockType] as? String,
+              let type = BlockType(rawValue: raw),
+              type == .title else { return false }
+
+        let endContent = NSMaxRange(paraRange) - 1
+        guard endContent >= paraRange.location else { return false }
+        let contentRange = NSRange(location: paraRange.location, length: endContent - paraRange.location)
+        let slice = (contentRange.length > 0 ? nsString.substring(with: contentRange) : "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return !slice.isEmpty
+    }
+
+    /// Re-types the paragraph containing `characterIndex` as an empty `.note` paragraph (including its `\n`).
+    private func applyNoteAttributesToParagraph(at characterIndex: Int) {
+        guard let storage = textStorage else { return }
+        let nsString = storage.string as NSString
+        guard nsString.length > 0 else { return }
+        let idx = min(characterIndex, nsString.length)
+        let paraRange = nsString.paragraphRange(for: NSRange(location: idx, length: 0))
+        let block = Block(type: .note, text: "", isChecked: false)
+        let attrs = BlockAttributes.attributes(for: block)
+        storage.beginEditing()
+        if paraRange.length > 0 {
+            storage.setAttributes(attrs, range: paraRange)
+        }
+        typingAttributes = attrs
+        storage.endEditing()
     }
 
     /// If the cursor is on an empty title or todo paragraph, change its type to .note (no
@@ -632,25 +771,52 @@ final class FlickTextView: NSTextView {
         return true
     }
 
-    /// Find the paragraph's substring range (no terminator) and enclosing range (with terminator)
-    /// that contain the given character location.
+    /// Paragraph bounds for Flick: same construction as `Coordinator.ensureParagraphAttributes` —
+    /// each logical paragraph is `substring` (from `enumerateSubstrings`) plus **at most one** following `\n`.
+    ///
+    /// Apple's `enclosingRange` is **not** used here: it can span **both** `\n` in `…text\n\n` (content + empty buffer),
+    /// so `setAttributes` on that range re-types the **content** line when you meant the buffer.
     private func paragraphRanges(at location: Int, in nsString: NSString) -> (sub: NSRange, enclosing: NSRange)? {
-        var found: (NSRange, NSRange)? = nil
+        let len = nsString.length
+        guard len > 0 else { return nil }
+
+        var subs: [NSRange] = []
         nsString.enumerateSubstrings(
-            in: NSRange(location: 0, length: nsString.length),
+            in: NSRange(location: 0, length: len),
             options: [.byParagraphs, .substringNotRequired]
-        ) { _, range, enclosingRange, stop in
-            // Use strict `<` so that a position at the start of paragraph N+1 doesn't
-            // also match paragraph N (whose enclosing range ends at the same offset).
-            let inEnclosing = location >= enclosingRange.location && location < NSMaxRange(enclosingRange)
-            // Special case: cursor sitting past the very last terminator → use the last paragraph.
-            let atEndOfDocument = location == nsString.length && NSMaxRange(enclosingRange) == nsString.length
-            if inEnclosing || atEndOfDocument {
-                found = (range, enclosingRange)
-                stop.pointee = true
+        ) { _, sub, _, _ in
+            subs.append(sub)
+        }
+        guard !subs.isEmpty else { return nil }
+
+        let fullRanges: [NSRange] = subs.map { sub -> NSRange in
+            var full = sub
+            if NSMaxRange(full) < len,
+               nsString.substring(with: NSRange(location: NSMaxRange(full), length: 1)) == "\n" {
+                full.length += 1
+            }
+            return full
+        }
+
+        let lastIdx = subs.count - 1
+        let result: (NSRange, NSRange)
+        if location >= len {
+            result = (subs[lastIdx], fullRanges[lastIdx])
+        } else {
+            var matchIndices: [Int] = []
+            for i in 0..<fullRanges.count {
+                let full = fullRanges[i]
+                if location >= full.location && location < NSMaxRange(full) {
+                    matchIndices.append(i)
+                }
+            }
+            if let idx = matchIndices.last {
+                result = (subs[idx], fullRanges[idx])
+            } else {
+                result = (subs[lastIdx], fullRanges[lastIdx])
             }
         }
-        return found
+        return result
     }
 
     /// Insert a new empty paragraph above the current one and place the cursor in it.

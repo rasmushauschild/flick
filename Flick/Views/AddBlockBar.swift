@@ -35,6 +35,7 @@ struct AddBlockBar: View {
         .padding(.vertical, 4)
         .modifier(GlassPillBackground())
         .padding(.bottom, 8)
+        .contentShape(Capsule())
     }
 }
 
