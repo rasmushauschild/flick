@@ -66,6 +66,7 @@ struct FlickTextEditor: NSViewRepresentable {
 
         // Listen for paragraph-conversion commands from AddBlockBar.
         context.coordinator.installConversionObserver()
+        context.coordinator.installWindowVisibleObserver()
 
         return scrollView
     }
@@ -96,6 +97,7 @@ struct FlickTextEditor: NSViewRepresentable {
         var parent: FlickTextEditor
         private var isApplyingProgrammaticChange = false
         private var conversionObserver: Any?
+        private var windowVisibleObserver: Any?
         /// Insertion index last seen while editing; AddBlockBar taps can steal focus and move `selectedRange()` before conversion runs.
         private var caretCharIndexForBarConversion: Int = 0
 
@@ -106,6 +108,9 @@ struct FlickTextEditor: NSViewRepresentable {
         deinit {
             if let conversionObserver {
                 NotificationCenter.default.removeObserver(conversionObserver)
+            }
+            if let windowVisibleObserver {
+                NotificationCenter.default.removeObserver(windowVisibleObserver)
             }
         }
 
@@ -126,6 +131,17 @@ struct FlickTextEditor: NSViewRepresentable {
             }
         }
 
+        func installWindowVisibleObserver() {
+            windowVisibleObserver = NotificationCenter.default.addObserver(
+                forName: .flickWindowDidBecomeVisible,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                guard let self, let textView = self.textView else { return }
+                textView.focusFirstLineIfPristineBlankPage()
+            }
+        }
+
         /// Replace the text view's content with the attributed string for these blocks.
         func replaceContents(with blocks: [Block], in textView: FlickTextView) {
             isApplyingProgrammaticChange = true
@@ -135,6 +151,9 @@ struct FlickTextEditor: NSViewRepresentable {
             ensureTrailingBuffer(in: textView)
             captureCaretAnchor(from: textView)
             updateFocusedBlockType()
+            DispatchQueue.main.async { [weak textView] in
+                textView?.focusFirstLineIfPristineBlankPage()
+            }
         }
 
         func textDidChange(_ notification: Notification) {
@@ -385,7 +404,80 @@ final class FlickTextView: NSTextView {
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
+        drawEmptyPagePlaceholderIfNeeded(in: dirtyRect)
         drawCheckboxes(in: dirtyRect)
+    }
+
+    // MARK: Empty page placeholder (first line)
+
+    private static let emptyPagePlaceholderString = "write something…"
+    /// Fine-tune vs real text baseline/origin (drawn placeholder vs TextKit line fragment).
+    private static let emptyPagePlaceholderDrawOffset = CGSize(width: -8, height: -9)
+
+    /// True for a pristine empty page: no visible text, and only the first line + trailing buffer (≤2 paragraphs). Extra newlines hide it.
+    private func shouldShowEmptyPagePlaceholder() -> Bool {
+        guard string.allSatisfy(\.isWhitespace) else { return false }
+        let ns = string as NSString
+        if ns.length == 0 { return true }
+        var paragraphCount = 0
+        ns.enumerateSubstrings(
+            in: NSRange(location: 0, length: ns.length),
+            options: [.byParagraphs, .substringNotRequired]
+        ) { _, _, _, _ in
+            paragraphCount += 1
+        }
+        return paragraphCount <= 2
+    }
+
+    private func drawEmptyPagePlaceholderIfNeeded(in dirtyRect: NSRect) {
+        guard shouldShowEmptyPagePlaceholder() else { return }
+        guard let lm = layoutManager, let tc = textContainer else { return }
+
+        let ns = string as NSString
+        let length = ns.length
+        let font = BlockAttributes.font(for: .note)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.labelColor.withAlphaComponent(0.5)
+        ]
+        let attrStr = NSAttributedString(string: Self.emptyPagePlaceholderString, attributes: attrs)
+
+        let drawRect: NSRect
+        if length == 0 {
+            let lineHeight = lm.defaultLineHeight(for: font)
+            drawRect = NSRect(
+                x: textContainerOrigin.x + textContainerInset.width,
+                y: textContainerOrigin.y + textContainerInset.height,
+                width: max(1, tc.size.width),
+                height: lineHeight
+            )
+        } else {
+            let firstPara = ns.paragraphRange(for: NSRange(location: 0, length: 0))
+            lm.ensureGlyphs(forCharacterRange: NSRange(location: 0, length: length))
+            lm.ensureLayout(forCharacterRange: NSRange(location: 0, length: length))
+            guard let lc = paragraphLineRect(for: firstPara, length: length, layoutManager: lm, textContainer: tc) else { return }
+            drawRect = NSRect(
+                x: textContainerOrigin.x + textContainerInset.width + lc.minX,
+                y: textContainerOrigin.y + textContainerInset.height + lc.minY,
+                width: max(1, lc.width),
+                height: lc.height
+            )
+        }
+
+        let adjusted = drawRect.offsetBy(
+            dx: Self.emptyPagePlaceholderDrawOffset.width,
+            dy: Self.emptyPagePlaceholderDrawOffset.height
+        )
+        guard adjusted.intersects(dirtyRect) else { return }
+        attrStr.draw(with: adjusted, options: [.usesLineFragmentOrigin, .usesFontLeading])
+    }
+
+    /// Makes the editor key with the caret on the first line when the document is still a pristine blank page.
+    func focusFirstLineIfPristineBlankPage() {
+        guard shouldShowEmptyPagePlaceholder() else { return }
+        guard let win = window, win.isVisible else { return }
+        win.makeFirstResponder(self)
+        setSelectedRange(NSRange(location: 0, length: 0))
     }
 
     private func drawCheckboxes(in dirtyRect: NSRect) {
@@ -860,6 +952,10 @@ final class FlickTextView: NSTextView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         window?.acceptsMouseMovedEvents = true
+        guard window != nil else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.focusFirstLineIfPristineBlankPage()
+        }
     }
 
     override func updateTrackingAreas() {

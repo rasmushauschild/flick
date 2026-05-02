@@ -16,10 +16,10 @@ enum BlockAttributes {
     static let todoIndent: CGFloat = 22
 
     static let titleFont: NSFont = {
-        if let font = NSFont(name: "Inter-SemiBold", size: 24) {
+        if let font = NSFont(name: "NocturneSerifTest-SemiBold", size: 25) {
             return font
         }
-        return NSFont.systemFont(ofSize: 24, weight: .semibold)
+        return NSFont.systemFont(ofSize: 25, weight: .semibold)
     }()
 
     static let bodyFont: NSFont = {
