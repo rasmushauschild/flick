@@ -7,6 +7,8 @@ struct DateScrubber: View {
     /// Driven from `RootView` so the strip reveals when hovering anywhere in the header,
     /// not just over the scrubber's own bounds.
     var isActive: Bool
+    /// Parent bumps this when returning from permanent notes to force scroll alignment without remounting the strip.
+    var stripRealignTick: Int = 0
 
     var body: some View {
         ZStack {
@@ -17,7 +19,7 @@ struct DateScrubber: View {
                 // Invisible when the strip is active but still in the ZStack; must not intercept clicks.
                 .allowsHitTesting(!isActive)
 
-            NumberStrip(selectedDate: $selectedDate)
+            NumberStrip(selectedDate: $selectedDate, stripRealignTick: stripRealignTick)
                 .opacity(isActive ? 1 : 0)
                 .allowsHitTesting(isActive)
         }
@@ -27,22 +29,22 @@ struct DateScrubber: View {
 
 private struct NumberStrip: View {
     @Binding var selectedDate: Date
+    var stripRealignTick: Int = 0
 
     /// Bound to `scrollPosition(id:anchor: .center)` — the day currently aligned with the viewport center.
     /// `selectedDate` mirrors this with paired `onChange` handlers (each guarded against equal writes to avoid loops).
     @State private var centeredDate: Date?
     /// While a programmatic select is animating, ignore `centeredDate` echoes so an in-flight neighbor doesn't overwrite the tapped day.
     @State private var suppressCenteredEcho = false
-    /// When true, `centeredDate` updates use a slow smooth animation; when false, disablesAnimations keeps scrubbing/snapping responsive.
-    @State private var programmaticScrollActive = false
+    /// Starts `true` so the first `centeredDate` values from layout (before `onAppear` aligns) cannot overwrite `selectedDate`; cleared after alignment settles.
+    @State private var suppressCenteredEchoForInitialLayout = true
 
     private let today = Calendar.current.startOfDay(for: Date())
     private let cellWidth: CGFloat = 28
     private let spacing: CGFloat = 18
     private let unselectedFontSize: CGFloat = 15
     private let selectedFontSize: CGFloat = 20
-    /// Programmatic scroll-to-day. Long `Transaction` + `programmaticScrollActive` so AppKit honors a slow glide; finger
-    /// scrubbing uses `disablesAnimations` so snaps stay responsive.
+    /// Programmatic scroll-to-day — paired with `CATransaction` so AppKit honors a slow glide.
     private let dateSnapAnimationDuration: Double = 2.0
 
     private let dates: [Date] = {
@@ -51,46 +53,67 @@ private struct NumberStrip: View {
         return (-730...730).compactMap { cal.date(byAdding: .day, value: $0, to: today) }
     }()
 
+    /// `LazyHStack` does not lay out off-screen cells immediately, so `scrollPosition(id:)` can resolve to the wrong
+    /// day until we scroll. `ScrollViewReader.scrollTo` forces that cell into the hierarchy; then we sync the binding.
+    private func alignScrollPositionToSelectedDate(using proxy: ScrollViewProxy) {
+        let raw = Calendar.current.startOfDay(for: selectedDate)
+        let target = dates.first(where: { Calendar.current.isDate($0, inSameDayAs: raw) }) ?? raw
+        suppressCenteredEchoForInitialLayout = true
+        Task { @MainActor in
+            proxy.scrollTo(target, anchor: .center)
+            centeredDate = target
+            await Task.yield()
+            proxy.scrollTo(target, anchor: .center)
+            centeredDate = target
+            suppressCenteredEchoForInitialLayout = false
+        }
+    }
+
     var body: some View {
         GeometryReader { geo in
             let centerInset = max(0, (geo.size.width - cellWidth) / 2)
-            /// Pull the edge fade ~20pt in from each bezel (normalized; capped so stops stay ordered on tiny widths).
-            let edgeInsetNorm = min(20.0 / max(geo.size.width, 1), 0.35)
+            /// Pull the edge fade in from each bezel (~40pt; capped normalized so stops stay ordered on tiny widths).
+            let edgeInsetNorm = min(40.0 / max(geo.size.width, 1), 0.35)
             let leftOpaqueStart = edgeInsetNorm + 0.22 * (1 - 2 * edgeInsetNorm)
             let rightOpaqueEnd = 1 - edgeInsetNorm - 0.22 * (1 - 2 * edgeInsetNorm)
             ZStack {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: spacing) {
-                        ForEach(dates, id: \.self) { date in
-                            dateCell(for: date)
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: spacing) {
+                            ForEach(dates, id: \.self) { date in
+                                dateCell(for: date)
+                                    .id(date)
+                            }
                         }
+                        .scrollTargetLayout()
+                        // Let taps fall through to the ScrollView — per-cell Buttons do not receive clicks reliably on macOS
+                        // inside NSScrollView; a single viewport-centered mapping selects the correct day.
+                        .allowsHitTesting(false)
                     }
-                    .scrollTargetLayout()
-                    // Let taps fall through to the ScrollView — per-cell Buttons do not receive clicks reliably on macOS
-                    // inside NSScrollView; a single viewport-centered mapping selects the correct day.
-                    .allowsHitTesting(false)
-                }
-                .contentMargins(.horizontal, centerInset, for: .scrollContent)
-                .scrollTargetBehavior(.viewAligned(limitBehavior: .never))
-                .scrollPosition(id: $centeredDate, anchor: .center)
-                .transaction { tx in
-                    if !programmaticScrollActive {
-                        tx.disablesAnimations = true
+                    .contentMargins(.horizontal, centerInset, for: .scrollContent)
+                    .scrollTargetBehavior(.viewAligned(limitBehavior: .never))
+                    .scrollPosition(id: $centeredDate, anchor: .center)
+                    // Viewport-sized alpha fade: dates blend into whatever is behind the strip (glass), not a painted overlay.
+                    // Tap handling stays on the outer `ZStack` so faded edge pixels don’t drop clicks.
+                    .mask {
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: edgeInsetNorm),
+                                .init(color: .black, location: leftOpaqueStart),
+                                .init(color: .black, location: rightOpaqueEnd),
+                                .init(color: .clear, location: 1 - edgeInsetNorm)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     }
-                }
-                // Viewport-sized alpha fade: dates blend into whatever is behind the strip (glass), not a painted overlay.
-                // Tap handling stays on the outer `ZStack` so faded edge pixels don’t drop clicks.
-                .mask {
-                    LinearGradient(
-                        stops: [
-                            .init(color: .clear, location: edgeInsetNorm),
-                            .init(color: .black, location: leftOpaqueStart),
-                            .init(color: .black, location: rightOpaqueEnd),
-                            .init(color: .clear, location: 1 - edgeInsetNorm)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onAppear {
+                        alignScrollPositionToSelectedDate(using: proxy)
+                    }
+                    .onChange(of: stripRealignTick) { _, _ in
+                        alignScrollPositionToSelectedDate(using: proxy)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -98,13 +121,8 @@ private struct NumberStrip: View {
             .onTapGesture(coordinateSpace: .local) { location in
                 handleStripTap(at: location.x, viewportWidth: geo.size.width)
             }
-            .onAppear {
-                if centeredDate == nil {
-                    centeredDate = selectedDate
-                }
-            }
             .onChange(of: centeredDate) { _, newDate in
-                guard let newDate, !suppressCenteredEcho else { return }
+                guard let newDate, !suppressCenteredEcho, !suppressCenteredEchoForInitialLayout else { return }
                 if newDate != selectedDate {
                     selectedDate = newDate
                     NSHapticFeedbackManager.defaultPerformer.perform(
@@ -115,7 +133,7 @@ private struct NumberStrip: View {
             }
             .onChange(of: selectedDate) { _, newDate in
                 // Avoid a second `centeredDate` animation fighting `selectDateProgrammatically`'s transaction.
-                guard !suppressCenteredEcho else { return }
+                guard !suppressCenteredEcho, !suppressCenteredEchoForInitialLayout else { return }
                 if centeredDate != newDate {
                     animateProgrammaticScroll {
                         let tx = Transaction(animation: .smooth(duration: dateSnapAnimationDuration))
@@ -130,18 +148,13 @@ private struct NumberStrip: View {
     }
 
     private func animateProgrammaticScroll(_ updates: @escaping () -> Void) {
-        programmaticScrollActive = true
-        // Defer so the next layout pass sees `programmaticScrollActive` before the scroll transaction runs;
-        // otherwise `.transaction { disablesAnimations }` can still suppress the programmatic animation.
+        // Wrap the scroll updates in a CATransaction so AppKit's NSScrollView honors a longer animation duration.
         DispatchQueue.main.async {
             CATransaction.begin()
             CATransaction.setAnimationDuration(dateSnapAnimationDuration)
             CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
             updates()
             CATransaction.commit()
-            DispatchQueue.main.asyncAfter(deadline: .now() + dateSnapAnimationDuration + 0.2) {
-                programmaticScrollActive = false
-            }
         }
     }
 
@@ -190,7 +203,7 @@ private struct NumberStrip: View {
             Color.clear
             VStack(spacing: 3) {
                 Text(date.formatted(.dateTime.day()))
-                    .font(.system(size: unselectedFontSize, weight: isToday ? .bold : .regular))
+                    .font(.system(size: unselectedFontSize, weight: (isSelected || isToday) ? .bold : .regular))
                     .foregroundStyle(
                         isSelected
                             ? Color.primary

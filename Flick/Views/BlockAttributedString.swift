@@ -7,6 +7,8 @@ extension NSAttributedString.Key {
 
 extension Notification.Name {
     static let flickConvertParagraph = Notification.Name("flickConvertParagraph")
+    /// Posted when the Flick panel is ordered on-screen (menu-bar show, etc.) so the UI can reset the date scrubber.
+    static let flickWindowDidBecomeVisible = Notification.Name("flickWindowDidBecomeVisible")
 }
 
 enum BlockAttributes {

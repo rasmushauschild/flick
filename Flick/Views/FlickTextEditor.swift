@@ -12,12 +12,17 @@ struct FlickTextEditor: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSScrollView()
+        let scrollView = FlickEditorScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
+        // Reserve room at the bottom so the last line scrolls clear of the floating AddBlockBar
+        // (28pt button + 8pt vertical padding + 8pt bottom margin + a little breathing room).
+        // Reserve room at the top so the first line clears the 24pt edge-fade band drawn by FlickEditorScrollView.
+        scrollView.automaticallyAdjustsContentInsets = false
+        scrollView.contentInsets = NSEdgeInsets(top: 18, left: 0, bottom: 52, right: 0)
 
         let textView = FlickTextView(frame: .zero)
         textView.setAccessibilityIdentifier("flickEditor")
@@ -45,7 +50,7 @@ struct FlickTextEditor: NSViewRepresentable {
         textView.textContainerInset = NSSize(width: 14, height: 8)
         textView.drawsBackground = false
         textView.backgroundColor = .clear
-        textView.insertionPointColor = .black
+        textView.insertionPointColor = .labelColor
 
         textView.textContainer?.widthTracksTextView = true
         textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
@@ -296,16 +301,22 @@ final class FlickTextView: NSTextView {
     }
 
     private func drawCheckboxes(in dirtyRect: NSRect) {
+        let now = CACurrentMediaTime()
         for entry in todoCheckboxEntries() {
-            if entry.rect.intersects(dirtyRect) {
-                drawCheckbox(in: entry.rect, checked: entry.checked)
+            guard entry.rect.intersects(dirtyRect) else { continue }
+            let fraction: CGFloat
+            if let anim = currentAnimation(forParagraph: entry.paragraphLocation) {
+                fraction = animationFraction(for: anim, now: now)
+            } else {
+                fraction = entry.checked ? 1 : 0
             }
+            drawCheckbox(in: entry.rect, fraction: fraction)
         }
     }
 
     /// Walks line fragments and produces one checkbox entry per todo paragraph at the
     /// y-position of the paragraph's first line.
-    private func todoCheckboxEntries() -> [(rect: NSRect, checked: Bool)] {
+    private func todoCheckboxEntries() -> [(rect: NSRect, checked: Bool, paragraphLocation: Int)] {
         guard let storage = textStorage,
               let layoutManager = layoutManager,
               let textContainer = textContainer else { return [] }
@@ -323,7 +334,7 @@ final class FlickTextView: NSTextView {
         let allGlyphs = NSRange(location: 0, length: layoutManager.numberOfGlyphs)
         var drawn = Set<Int>()
         var maxLineBottom: CGFloat = 0
-        var entries: [(rect: NSRect, checked: Bool)] = []
+        var entries: [(rect: NSRect, checked: Bool, paragraphLocation: Int)] = []
 
         func consider(lineRect: NSRect, paragraphStart: Int) {
             if drawn.contains(paragraphStart) { return }
@@ -338,7 +349,11 @@ final class FlickTextView: NSTextView {
             let size: CGFloat = 14
             let x = textContainerInset.width
             let y = lineRect.minY + textContainerInset.height + (lineRect.height - size) / 2
-            entries.append((NSRect(x: x, y: y, width: size, height: size), checked))
+            entries.append((
+                NSRect(x: x, y: y, width: size, height: size),
+                checked,
+                paragraphStart
+            ))
         }
 
         if allGlyphs.length > 0 {
@@ -409,30 +424,57 @@ final class FlickTextView: NSTextView {
         return extra.height > 0 ? extra : nil
     }
 
-    private func drawCheckbox(in rect: NSRect, checked: Bool) {
+    /// Draws the checkbox at an interpolated state. `fraction` is 0 (unchecked) → 1 (fully checked).
+    private func drawCheckbox(in rect: NSRect, fraction rawFraction: CGFloat) {
+        let f = max(0, min(1, rawFraction))
         let path = NSBezierPath(ovalIn: rect.insetBy(dx: 0.5, dy: 0.5))
         path.lineWidth = 1.2
-        if checked {
-            NSColor.labelColor.setStroke()
-            NSColor.labelColor.withAlphaComponent(0.85).setFill()
-            path.fill()
-            path.stroke()
 
-            // Checkmark (NSTextView is flipped: minY = top, maxY = bottom)
-            let check = NSBezierPath()
-            let inset = rect.insetBy(dx: 3, dy: 3.5)
-            check.move(to: NSPoint(x: inset.minX, y: inset.midY))
-            check.line(to: NSPoint(x: inset.midX - 0.5, y: inset.maxY))
-            check.line(to: NSPoint(x: inset.maxX, y: inset.minY + 1))
-            check.lineWidth = 1.4
-            check.lineCapStyle = .round
-            check.lineJoinStyle = .round
-            NSColor.windowBackgroundColor.setStroke()
-            check.stroke()
-        } else {
-            NSColor.tertiaryLabelColor.setStroke()
+        if f > 0 {
+            NSColor.labelColor.withAlphaComponent(0.85 * f).setFill()
+            path.fill()
+        }
+        // Two stacked strokes blend tertiary → label as f goes 0 → 1.
+        if f < 1 {
+            NSColor.tertiaryLabelColor.withAlphaComponent(1 - f).setStroke()
             path.stroke()
         }
+        if f > 0 {
+            NSColor.labelColor.withAlphaComponent(f).setStroke()
+            path.stroke()
+        }
+
+        if f > 0 {
+            drawCheckmark(in: rect, fraction: f)
+        }
+    }
+
+    /// Draws a partial check-mark polyline (NSTextView is flipped: minY = top, maxY = bottom).
+    private func drawCheckmark(in rect: NSRect, fraction: CGFloat) {
+        let inset = rect.insetBy(dx: 3, dy: 3.5)
+        let p0 = NSPoint(x: inset.minX, y: inset.midY)
+        let p1 = NSPoint(x: inset.midX - 0.5, y: inset.maxY)
+        let p2 = NSPoint(x: inset.maxX, y: inset.minY + 1)
+        let len1 = hypot(p1.x - p0.x, p1.y - p0.y)
+        let len2 = hypot(p2.x - p1.x, p2.y - p1.y)
+        let total = len1 + len2
+        let want = max(0, total * fraction)
+
+        let path = NSBezierPath()
+        path.move(to: p0)
+        if want <= len1 || total <= 0 {
+            let t = len1 > 0 ? want / len1 : 0
+            path.line(to: NSPoint(x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t))
+        } else {
+            path.line(to: p1)
+            let r = len2 > 0 ? (want - len1) / len2 : 0
+            path.line(to: NSPoint(x: p1.x + (p2.x - p1.x) * r, y: p1.y + (p2.y - p1.y) * r))
+        }
+        path.lineWidth = 1.4
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+        NSColor.windowBackgroundColor.setStroke()
+        path.stroke()
     }
 
     // MARK: Click → toggle checkbox
@@ -480,19 +522,24 @@ final class FlickTextView: NSTextView {
         let currentChecked = (storage.attribute(.flickIsChecked, at: probe, effectiveRange: nil) as? Bool) ?? false
         let newChecked = !currentChecked
 
-        // NSString.paragraphRange(for:) already includes the trailing terminator —
-        // do NOT expand further or we'll set attributes on the next paragraph too.
+        // Apply final attributes (including system strikethrough) immediately. We only animate the
+        // checkbox tick; the strike-through flips instantly with the rest of the paragraph attrs.
         let block = Block(type: .todo, text: "", isChecked: newChecked)
         let attrs = BlockAttributes.attributes(for: block)
+
+        // NSString.paragraphRange(for:) already includes the trailing terminator —
+        // do NOT expand further or we'll set attributes on the next paragraph too.
         storage.beginEditing()
         if paragraphRange.length > 0 {
             storage.setAttributes(attrs, range: paragraphRange)
         }
         storage.endEditing()
 
-        // Notify our delegate so the SwiftUI binding gets the new state.
+        // Sync the SwiftUI binding right away.
         delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
-        needsDisplay = true
+
+        // Animate just the checkbox tick.
+        startCheckboxAnimation(paragraphRange: paragraphRange, toChecked: newChecked)
     }
 
     // MARK: Block conversion (called by AddBlockBar via notification)
@@ -697,5 +744,188 @@ final class FlickTextView: NSTextView {
     private func checkboxRects() -> [NSRect] {
         // Slightly enlarge the cursor rect so the hover zone is comfortable.
         todoCheckboxEntries().map { $0.rect.insetBy(dx: -2, dy: -2) }
+    }
+
+    // MARK: - Checkbox toggle animation engine
+
+    private struct CheckboxAnimation {
+        let start: CFTimeInterval
+        let duration: CFTimeInterval
+        let toChecked: Bool
+        let paragraphRange: NSRange
+    }
+
+    private static let checkboxAnimationDuration: CFTimeInterval = 0.28
+
+    private var checkboxAnimations: [CheckboxAnimation] = []
+    private var checkboxAnimationTimer: Timer?
+
+    private func currentAnimation(forParagraph location: Int) -> CheckboxAnimation? {
+        checkboxAnimations.last(where: { $0.paragraphRange.location == location })
+    }
+
+    private func animationFraction(for anim: CheckboxAnimation, now: CFTimeInterval) -> CGFloat {
+        let raw = max(0, min(1, (now - anim.start) / anim.duration))
+        let eased = Self.easeOutCubic(CGFloat(raw))
+        return anim.toChecked ? eased : (1 - eased)
+    }
+
+    private static func easeOutCubic(_ t: CGFloat) -> CGFloat {
+        1 - pow(1 - t, 3)
+    }
+
+    private func startCheckboxAnimation(paragraphRange: NSRange, toChecked: Bool) {
+        // Latest tap on the same paragraph supersedes any in-flight animation.
+        checkboxAnimations.removeAll { $0.paragraphRange.location == paragraphRange.location }
+        let anim = CheckboxAnimation(
+            start: CACurrentMediaTime(),
+            duration: Self.checkboxAnimationDuration,
+            toChecked: toChecked,
+            paragraphRange: paragraphRange
+        )
+        checkboxAnimations.append(anim)
+        startCheckboxAnimationTimer()
+        invalidateParagraphRect(for: paragraphRange)
+    }
+
+    private func startCheckboxAnimationTimer() {
+        guard checkboxAnimationTimer == nil else { return }
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            self?.tickCheckboxAnimations()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        checkboxAnimationTimer = timer
+    }
+
+    private func stopCheckboxAnimationTimerIfIdle() {
+        guard checkboxAnimations.isEmpty else { return }
+        checkboxAnimationTimer?.invalidate()
+        checkboxAnimationTimer = nil
+    }
+
+    private func tickCheckboxAnimations() {
+        let now = CACurrentMediaTime()
+        var stillRunning: [CheckboxAnimation] = []
+        var completed: [CheckboxAnimation] = []
+        for anim in checkboxAnimations {
+            if now - anim.start >= anim.duration {
+                completed.append(anim)
+            } else {
+                stillRunning.append(anim)
+            }
+        }
+        checkboxAnimations = stillRunning
+        for anim in completed {
+            finalizeCheckboxAnimation(anim)
+        }
+        // Repaint each in-flight paragraph's region so the next display cycle reflects the new fraction.
+        for anim in checkboxAnimations {
+            invalidateParagraphRect(for: anim.paragraphRange)
+        }
+        stopCheckboxAnimationTimerIfIdle()
+    }
+
+    private func finalizeCheckboxAnimation(_ anim: CheckboxAnimation) {
+        // Storage is already in its final state (set in `toggleTodoChecked`); the animation is
+        // purely a draw-time effect, so we just request a final repaint of the paragraph.
+        invalidateParagraphRect(for: anim.paragraphRange)
+    }
+
+    private func invalidateParagraphRect(for paraRange: NSRange) {
+        if let rect = paragraphInvalidationRect(for: paraRange) {
+            setNeedsDisplay(rect)
+        } else {
+            needsDisplay = true
+        }
+    }
+
+    /// Bounding rect of the paragraph's visible content (checkbox column + line fragments) in view coords.
+    private func paragraphInvalidationRect(for paraRange: NSRange) -> NSRect? {
+        guard let layoutManager = layoutManager,
+              let storage = textStorage else { return nil }
+        let length = storage.length
+        let safeRange = NSRange(
+            location: max(0, min(paraRange.location, length)),
+            length: max(0, min(paraRange.length, length - paraRange.location))
+        )
+        guard safeRange.length > 0 else { return nil }
+        let glyphRange = layoutManager.glyphRange(forCharacterRange: safeRange, actualCharacterRange: nil)
+        var union = NSRect.zero
+        var first = true
+        layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, _, _, _ in
+            let inView = NSRect(
+                x: 0,
+                y: lineRect.minY + self.textContainerInset.height,
+                width: max(self.bounds.width, lineRect.maxX + self.textContainerInset.width),
+                height: lineRect.height
+            )
+            union = first ? inView : union.union(inView)
+            first = false
+        }
+        guard !first else { return nil }
+        return union.insetBy(dx: -2, dy: -2)
+    }
+
+}
+
+// MARK: - NSScrollView subclass with viewport edge fade
+
+/// `NSScrollView` that softly fades content at its top and bottom via a `CAGradientLayer` mask
+/// pinned to the visible viewport. The mask sits on the scroll view's own layer so it never moves
+/// with the scrolled content, and it doesn't affect hit testing — clicks on checkboxes still work
+/// in the faded bands.
+final class FlickEditorScrollView: NSScrollView {
+    /// Height of each fade band, in points.
+    private let fadeHeight: CGFloat = 24
+    private let fadeMask = CAGradientLayer()
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setupFadeMask()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupFadeMask()
+    }
+
+    private func setupFadeMask() {
+        wantsLayer = true
+        fadeMask.colors = [
+            NSColor.clear.cgColor,
+            NSColor.black.cgColor,
+            NSColor.black.cgColor,
+            NSColor.clear.cgColor
+        ]
+        fadeMask.startPoint = CGPoint(x: 0.5, y: 0)
+        fadeMask.endPoint = CGPoint(x: 0.5, y: 1)
+        layer?.mask = fadeMask
+        updateFadeMask()
+    }
+
+    override func tile() {
+        super.tile()
+        updateFadeMask()
+    }
+
+    override func layout() {
+        super.layout()
+        updateFadeMask()
+    }
+
+    private func updateFadeMask() {
+        // Disable implicit animation so the mask never lags during resize/scroll.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        fadeMask.frame = bounds
+        let height = max(bounds.height, 1)
+        let stop = min(0.49, fadeHeight / height)
+        fadeMask.locations = [
+            0,
+            NSNumber(value: Float(stop)),
+            NSNumber(value: Float(1 - stop)),
+            1
+        ]
+        CATransaction.commit()
     }
 }

@@ -57,6 +57,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 NSApp.activate(ignoringOtherApps: true)
                 self.window.center()
                 self.window.makeKeyAndOrderFront(nil)
+                NotificationCenter.default.post(name: .flickWindowDidBecomeVisible, object: nil)
             }
         }
     }
@@ -79,6 +80,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem.behavior = []
         if let button = statusItem.button {
             if let image = NSImage(systemSymbolName: "checklist", accessibilityDescription: "Flick") {
+                // Template lets the menu bar tint the glyph for the active appearance (light/dark).
+                image.isTemplate = true
                 button.image = image
             } else {
                 button.title = "Flick"
@@ -140,6 +143,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
             applyDockedState()
+            NotificationCenter.default.post(name: .flickWindowDidBecomeVisible, object: nil)
         }
     }
 
@@ -213,8 +217,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         hostingController.view.layer?.cornerCurve = .continuous
         hostingController.view.layer?.masksToBounds = true
 
+        // Mirror the menu-bar dismiss path. `NSWindow.performClose` beeps on borderless windows
+        // whose standard close button is hidden (which is always the case here).
         windowDockState.performClose = { [weak self] in
-            self?.window?.performClose(nil)
+            self?.hideWindow()
         }
     }
 

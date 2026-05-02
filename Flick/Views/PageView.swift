@@ -10,7 +10,7 @@ struct PageView: View {
     @State private var focusedBlockType: BlockType? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack(alignment: .bottom) {
             FlickTextEditor(
                 blocks: $blocks,
                 focusedBlockType: $focusedBlockType

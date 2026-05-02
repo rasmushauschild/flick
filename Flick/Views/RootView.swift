@@ -7,9 +7,15 @@ struct RootView: View {
     @Environment(ModeToggleBridge.self) private var modeToggleBridge
     @Environment(WindowDockState.self) private var dock
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
+    /// Captured when opening permanent notes; restored when returning to daily so the scrubber stays on the prior day.
+    @State private var dailyDateBeforePermanent = Calendar.current.startOfDay(for: Date())
     @State private var pageMode: PageMode = .daily(Calendar.current.startOfDay(for: Date()))
     /// Header-wide hover state: drives the scrubber's reveal so the user can scroll/scrub from anywhere in the header.
     @State private var headerHover: Bool = false
+    /// Hover state for the floating close dot — shows the traffic-light style "x" glyph when true.
+    @State private var isCloseHovered: Bool = false
+    /// Incremented when leaving permanent notes so the date strip runs a layout resync (even if `selectedDate` is already today).
+    @State private var stripRealignTick: Int = 0
 
     private var isPermanent: Bool {
         if case .permanent = pageMode { return true }
@@ -19,23 +25,30 @@ struct RootView: View {
     var body: some View {
         VStack(spacing: 0) {
             Color.clear.frame(height: 0)
-            Group {
-                if isPermanent {
-                    headerChrome {
+            headerChrome {
+                ZStack {
+                    // Kept alive while viewing permanent notes so `LazyHStack` / scroll position are not torn down.
+                    DateScrubber(
+                        selectedDate: $selectedDate,
+                        isActive: headerHover && !isPermanent,
+                        stripRealignTick: stripRealignTick
+                    )
+                    .opacity(isPermanent ? 0 : 1)
+                    .allowsHitTesting(!isPermanent)
+
+                    if isPermanent {
                         Text("Notes")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.secondary)
-                    }
-                } else {
-                    headerChrome {
-                        DateScrubber(selectedDate: $selectedDate, isActive: headerHover)
                     }
                 }
             }
 
             PageView(mode: pageMode)
                 .id(pageMode)
+                .transition(.opacity)
         }
+        .animation(.easeInOut(duration: 0.18), value: pageMode)
         .padding(15)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
@@ -59,7 +72,16 @@ struct RootView: View {
         }
         .onChange(of: selectedDate) { _, newDate in
             if !isPermanent {
-                pageMode = .daily(newDate)
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    pageMode = .daily(newDate)
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .flickWindowDidBecomeVisible)) { _ in
+            let today = Calendar.current.startOfDay(for: Date())
+            selectedDate = today
+            if !isPermanent {
+                pageMode = .daily(today)
             }
         }
     }
@@ -98,11 +120,19 @@ struct RootView: View {
                 Button {
                     dock.performClose()
                 } label: {
-                    Circle()
-                        .fill(Color.red.opacity(0.92))
-                        .frame(width: 16, height: 16)
+                    ZStack {
+                        Circle()
+                            .fill(Color.red.opacity(0.92))
+                            .frame(width: 16, height: 16)
+                        if isCloseHovered {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(Color.black.opacity(0.55))
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
+                .onHover { hovering in isCloseHovered = hovering }
                 .help("Close window")
                 .contentShape(Circle())
                 .accessibilityIdentifier("flickClose")
@@ -114,11 +144,17 @@ struct RootView: View {
 
     private func toggleMode() {
         if isPermanent {
-            let today = Calendar.current.startOfDay(for: Date())
-            selectedDate = today
-            pageMode = .daily(today)
+            let restore = dailyDateBeforePermanent
+            selectedDate = restore
+            stripRealignTick += 1
+            withAnimation(.easeInOut(duration: 0.18)) {
+                pageMode = .daily(restore)
+            }
         } else {
-            pageMode = .permanent
+            dailyDateBeforePermanent = Calendar.current.startOfDay(for: selectedDate)
+            withAnimation(.easeInOut(duration: 0.18)) {
+                pageMode = .permanent
+            }
         }
     }
 }
@@ -130,22 +166,13 @@ private struct ModeToggleChromeButton: View {
         Button {
             bridge.performToggle()
         } label: {
-            Group {
-                if bridge.isPermanent {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                        .frame(width: 32, height: 32)
-                } else {
-                    Image("mode.permanent")
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 20, height: 20)
-                        .foregroundStyle(.tertiary)
-                        .frame(width: 32, height: 32)
-                }
-            }
+            Image("mode.permanent")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 20, height: 20)
+                .foregroundStyle(bridge.isPermanent ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+                .frame(width: 32, height: 32)
         }
         .buttonStyle(.plain)
         .help(bridge.isPermanent ? "Show daily pages" : "Show notes")

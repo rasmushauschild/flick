@@ -38,7 +38,7 @@ struct BlockRow: View {
             TextField("", text: $block.text, axis: block.type == .title ? .horizontal : .vertical)
                 .font(textFont)
                 .textFieldStyle(.plain)
-                .tint(.black)
+                .tint(.primary)
                 .strikethrough(block.isChecked && block.type == .todo, color: .secondary)
                 .foregroundStyle(block.isChecked && block.type == .todo ? .tertiary : .primary)
                 .lineLimit(block.type == .title ? 1...1 : 1...8)
