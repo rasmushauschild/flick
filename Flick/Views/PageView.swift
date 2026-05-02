@@ -3,7 +3,6 @@ import AppKit
 
 struct PageView: View {
     @Environment(Store.self) private var store
-    @Environment(AppSettings.self) private var settings
     let mode: PageMode
 
     @State private var blocks: [Block] = []
@@ -14,8 +13,7 @@ struct PageView: View {
         VStack(spacing: 0) {
             FlickTextEditor(
                 blocks: $blocks,
-                focusedBlockType: $focusedBlockType,
-                transparent: settings.isTransparent
+                focusedBlockType: $focusedBlockType
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 

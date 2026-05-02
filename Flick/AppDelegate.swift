@@ -1,6 +1,12 @@
 import AppKit
 import SwiftUI
 
+/// Borderless windows are not key by default; without key status the editor stays disabled for UI tests and typing.
+final class FlickWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 final class FlickFieldEditor: NSTextView {
     var suppressSelectAll = false
 
@@ -16,9 +22,8 @@ final class FlickFieldEditor: NSTextView {
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem!
-    private var window: NSWindow!
+    private var window: FlickWindow!
     private var hostingController: NSHostingController<AnyView>!
-    private var visualEffectView: NSVisualEffectView!
     private let fieldEditor: FlickFieldEditor = {
         let editor = FlickFieldEditor()
         editor.isFieldEditor = true
@@ -33,15 +38,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let store = Store()
     let settings = AppSettings()
     let modeToggleBridge = ModeToggleBridge()
-
-    private var modeToggleTitlebarHost: NSHostingController<AnyView>!
-    private var modeToggleTitlebarAccessory: NSTitlebarAccessoryViewController!
+    let windowDockState = WindowDockState()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
         setupWindow()
         setupKeyMonitor()
-        observeSettings()
 
 
         // UI test bootstrap: auto-show the window so the test runner doesn't have to
@@ -50,6 +52,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.isDocked = false
+                self.windowDockState.isDocked = false
                 self.window.level = .normal
                 NSApp.activate(ignoringOtherApps: true)
                 self.window.center()
@@ -97,15 +100,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func showStatusMenu(from button: NSStatusBarButton) {
         let menu = NSMenu()
 
-        let transparent = NSMenuItem(
-            title: "Transparent background",
-            action: #selector(toggleTransparent),
-            keyEquivalent: ""
-        )
-        transparent.target = self
-        transparent.state = settings.isTransparent ? .on : .off
-        menu.addItem(transparent)
-
         let launch = NSMenuItem(
             title: "Launch at startup",
             action: #selector(toggleLaunchAtStartup),
@@ -131,10 +125,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem.menu = nil
     }
 
-    @objc private func toggleTransparent() {
-        settings.isTransparent.toggle()
-    }
-
     @objc private func toggleLaunchAtStartup() {
         settings.launchAtStartup.toggle()
     }
@@ -156,6 +146,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func hideWindow() {
         stopOutsideMonitor()
         isDocked = true
+        windowDockState.isDocked = true
         window.orderOut(nil)
     }
 
@@ -180,83 +171,59 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - Window setup
 
     private func setupWindow() {
-        window = NSWindow(
+        // Borderless so there is no separate title-bar / unified-toolbar drag strip
+        // above the clipped SwiftUI content (that strip stayed draggable and looked empty).
+        window = FlickWindow(
             contentRect: NSRect(x: 0, y: 0, width: 280, height: 453),
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+            styleMask: [.borderless, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
         window.isReleasedWhenClosed = false
-        window.isMovableByWindowBackground = false
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        window.standardWindowButton(.zoomButton)?.isHidden = true
+        // Drag only from the hosting view / SwiftUI "background", not system chrome.
+        window.isMovableByWindowBackground = true
         window.minSize = NSSize(width: 240, height: 360)
         window.delegate = self
+        window.hasShadow = true
 
-        // Opting into NSToolbar on macOS 26 (Tahoe) gets us the larger
-        // rounded-window corner radius automatically.
-        let toolbar = NSToolbar(identifier: "main")
-        toolbar.displayMode = .iconOnly
-        window.toolbar = toolbar
-        window.toolbarStyle = .unifiedCompact
-
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 453))
-        container.autoresizingMask = [.width, .height]
-
-        visualEffectView = NSVisualEffectView(frame: container.bounds)
-        visualEffectView.material = .menu
-        visualEffectView.blendingMode = .behindWindow
-        visualEffectView.state = .active
-        visualEffectView.autoresizingMask = [.width, .height]
-        container.addSubview(visualEffectView)
+        // The visible chrome is now drawn entirely by SwiftUI (Liquid Glass
+        // background + rounded clip), so the window itself must be transparent
+        // so its shadow/backdrop follow our rounded shape.
+        window.isOpaque = false
+        window.backgroundColor = .clear
 
         hostingController = NSHostingController(
             rootView: AnyView(
                 RootView()
                     .environment(store)
-                    .environment(settings)
                     .environment(modeToggleBridge)
+                    .environment(windowDockState)
             )
         )
-        hostingController.view.frame = container.bounds
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 280, height: 453)
         hostingController.view.autoresizingMask = [.width, .height]
-        container.addSubview(hostingController.view)
 
-        window.contentView = container
-        setupModeToggleTitlebarAccessory()
-        updateAppearance()
-    }
+        window.contentView = hostingController.view
 
-    /// SwiftUI `.toolbar` does not show on the window when `NSHostingController` is only a subview of a custom `contentView`.
-    private func setupModeToggleTitlebarAccessory() {
-        let accessory = NSTitlebarAccessoryViewController()
-        accessory.layoutAttribute = .trailing
+        // Backstop: if Tahoe's automatic radius is still smaller than the
+        // SwiftUI glass shape, mask the contentView at 30pt so the visible
+        // window matches the SwiftUI background exactly.
+        hostingController.view.wantsLayer = true
+        hostingController.view.layer?.cornerRadius = 30
+        hostingController.view.layer?.cornerCurve = .continuous
+        hostingController.view.layer?.masksToBounds = true
 
-        modeToggleTitlebarHost = NSHostingController(
-            rootView: AnyView(
-                ModeToggleTitlebarView()
-                    .environment(modeToggleBridge)
-            )
-        )
-        modeToggleTitlebarHost.view.frame = NSRect(x: 0, y: 0, width: 36, height: 28)
-
-        accessory.view = modeToggleTitlebarHost.view
-        modeToggleTitlebarAccessory = accessory
-        window.addTitlebarAccessoryViewController(accessory)
+        windowDockState.performClose = { [weak self] in
+            self?.window?.performClose(nil)
+        }
     }
 
     // MARK: - Docked state
 
     private func applyDockedState() {
-        let closeButton = window.standardWindowButton(.closeButton)
-        closeButton?.isHidden = isDocked
-        if !isDocked {
-            DispatchQueue.main.async { [weak self] in
-                self?.positionCloseButton()
-            }
-        }
+        windowDockState.isDocked = isDocked
+        // In-content SwiftUI close dot replaces the traffic-light when floating.
+        window.standardWindowButton(.closeButton)?.isHidden = true
         if isDocked {
             window.level = .normal
             startOutsideMonitor()
@@ -264,39 +231,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             window.level = .floating
             stopOutsideMonitor()
         }
-    }
-
-    private var closeButtonObserver: NSKeyValueObservation?
-    private var isReapplyingCloseButtonFrame = false
-
-    private func positionCloseButton() {
-        guard let close = window.standardWindowButton(.closeButton),
-              let titleBar = close.superview else { return }
-        let titleBarHeight = titleBar.bounds.height
-        let buttonHeight = close.frame.height
-        let target = NSPoint(x: 13, y: max(0, titleBarHeight - 13 - buttonHeight))
-        guard close.frame.origin != target else { return }
-        isReapplyingCloseButtonFrame = true
-        var frame = close.frame
-        frame.origin = target
-        close.frame = frame
-        isReapplyingCloseButtonFrame = false
-
-        if closeButtonObserver == nil {
-            closeButtonObserver = close.observe(\.frame, options: [.new, .old]) { [weak self] button, change in
-                guard let self,
-                      !self.isReapplyingCloseButtonFrame,
-                      change.newValue?.origin != change.oldValue?.origin else { return }
-                let goal = NSPoint(x: 13, y: max(0, (button.superview?.bounds.height ?? 0) - 13 - button.frame.height))
-                if button.frame.origin != goal {
-                    DispatchQueue.main.async { self.positionCloseButton() }
-                }
-            }
-        }
-    }
-
-    func windowDidResize(_ notification: Notification) {
-        if !isDocked { positionCloseButton() }
     }
 
     private func startOutsideMonitor() {
@@ -336,37 +270,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         isDocked = true
+        windowDockState.isDocked = true
         stopOutsideMonitor()
-    }
-
-    // MARK: - Appearance
-
-    private func updateAppearance() {
-        hostingController.view.wantsLayer = true
-
-        if settings.isTransparent {
-            window.appearance = nil
-            window.backgroundColor = .clear
-            window.isOpaque = false
-            visualEffectView.isHidden = false
-            hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
-        } else {
-            window.appearance = NSAppearance(named: .aqua)
-            window.backgroundColor = .white
-            window.isOpaque = true
-            visualEffectView.isHidden = true
-            hostingController.view.layer?.backgroundColor = NSColor.white.cgColor
-        }
-    }
-
-    private func observeSettings() {
-        withObservationTracking {
-            _ = settings.isTransparent
-        } onChange: { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.updateAppearance()
-                self?.observeSettings()
-            }
-        }
     }
 }

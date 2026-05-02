@@ -6,7 +6,6 @@ import SwiftUI
 struct FlickTextEditor: NSViewRepresentable {
     @Binding var blocks: [Block]
     @Binding var focusedBlockType: BlockType?
-    var transparent: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)

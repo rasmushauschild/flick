@@ -7,8 +7,8 @@ A macOS menu-bar app for daily notes & todos. SwiftUI + AppKit hybrid. macOS 15.
 ```
 Flick/
   FlickApp.swift                 — @main + NSApplicationDelegateAdaptor
-  AppDelegate.swift              — NSStatusItem + NSWindow lifecycle, key/mouse monitors,
-                                    settings observation, custom close-button positioning,
+  AppDelegate.swift              — FlickWindow (borderless key window), NSStatusItem, key/mouse
+                                    monitors, dock/float state, ModeToggleBridge + WindowDockState,
                                     --ui-testing launch flag handling
   Models/
     Block.swift                  — Block(id, type, text, isChecked) + BlockType enum
@@ -16,13 +16,14 @@ Flick/
     Store.swift                  — @Observable, persists [String: DayPage] as JSON;
                                     hasContent ignores whitespace; removePage(id:)
                                     drops empty pages; uses temp dir under --ui-testing
-    AppSettings.swift            — @Observable: isTransparent, launchAtStartup
+    AppSettings.swift            — @Observable: launchAtStartup
+    WindowDockState.swift        — @Observable: isDocked + performClose for in-content chrome
+    ModeToggleBridge.swift       — @Observable bridge for daily/permanent toggle from SwiftUI
   Views/
-    RootView.swift               — top VStack (date scrubber + PageView), and overlays
-                                    for the red close dot (top-leading) and the
-                                    notes/calendar mode toggle (top-trailing).
-                                    Uses .ignoresSafeArea(.top) so overlays pin to the
-                                    actual window edge.
+    RootView.swift               — Liquid Glass (or material fallback) background; header
+                                    HStack: fixed-width close/placeholder + centered DateScrubber
+                                    or Notes + mode toggle (scrubber never underlaps the icons).
+                                    PageView below.
     DateScrubber.swift           — horizontal date strip with hover-to-reveal numbers,
                                     bold today, content-dot under dates with text,
                                     smooth scroll-on-tap (custom Task-driven animation
@@ -34,7 +35,6 @@ Flick/
     AddBlockBar.swift            — Title / Note / Todo convert buttons + settings gear.
                                     Buttons are always enabled and post
                                     .flickConvertParagraph notifications.
-    SettingsPanel.swift          — popover for transparent background + launch-at-startup
     BlockAttributedString.swift  — [Block] <-> NSAttributedString. Defines the
                                     .flickBlockType / .flickIsChecked attribute keys,
                                     the paragraph styles (todo gets a head indent for
@@ -87,10 +87,10 @@ Lives in `Flick/Views/FlickTextEditor.swift`. Key responsibilities:
 ## UI / cosmetics
 
 - **Title font**: `NocturneSerifTest-SemiBold` 17pt (postscript-named in `BlockAttributes.titleFont`). Falls back to system semibold 17 if not installed.
-- **Transparent mode**: NSVisualEffectView with `.menu` material, `.behindWindow` blending. Toggling reapplies in `AppDelegate.updateAppearance`.
-- **Window**: `.titled, .closable, .resizable, .fullSizeContentView`, `titlebarAppearsTransparent`, `titleVisibility = .hidden`, miniaturize/zoom hidden, min size 240×360. Standard close button is repositioned to (13, titleBarHeight - 13 - buttonHeight) and pinned via KVO + `windowDidResize` so AppKit can't snap it back.
-- **Notes/calendar mode toggle**: SwiftUI overlay top-trailing on the outer VStack, padding `(top: 6, trailing: 7)`, `.ignoresSafeArea(.top)`.
-- **Red close dot**: was a SwiftUI custom red Circle overlaid top-leading; reverted to the standard NSWindow close button (we still keep the `.flickClosePressed` Notification name in case we go back to a custom one for the borderless / liquid-glass refactor).
+- **Liquid Glass**: `RootView` uses `glassEffect(.regular, in: RoundedRectangle(30))` on macOS 26+; older OS uses `.ultraThinMaterial`. Window is non-opaque with clear `backgroundColor`; hosting view layer clips at 30pt continuous corners. `window.isMovableByWindowBackground = true` so the panel drags without relying on an empty title bar.
+- **Window**: `FlickWindow` subclass of `NSWindow` — `.borderless, .closable, .resizable, .fullSizeContentView` (no titled / unified-toolbar strip; that strip was an invisible drag target above the glass). Borderless panels need `canBecomeKey` / `canBecomeMain` so the text editor accepts focus. `isMovableByWindowBackground`, min size 240×360. When **floating** (`!isDocked`), a SwiftUI red dot in the header row calls `performClose`.
+- **Notes/calendar mode toggle**: same header row as the date scrubber (trailing), via `ModeToggleBridge`.
+- **Red close dot**: in-content SwiftUI button when undocked; `.flickClosePressed` remains in `BlockRow.swift` for possible reuse.
 
 ## Build / run
 

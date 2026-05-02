@@ -8,7 +8,7 @@ struct DateScrubber: View {
         ZStack {
             Text(selectedDate.formatted(.dateTime.weekday(.wide).month(.wide).day()))
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.primary.opacity(0.78))
                 .opacity(isHovering ? 0 : 1)
 
             NumberStrip(selectedDate: $selectedDate)
@@ -36,6 +36,8 @@ private struct NumberStrip: View {
     private let itemWidth: CGFloat = 20
     private let spacing: CGFloat = 18
     private let horizontalPadding: CGFloat = 16
+    /// Soft alpha fade at the inner left/right of the scrubber (layout already clears the chrome).
+    private let edgeFadeWidth: CGFloat = 28
     private let animationDuration: Double = 0.5
 
     private let dates: [Date] = {
@@ -67,18 +69,25 @@ private struct NumberStrip: View {
             } action: { _, newValue in
                 currentOffsetX = newValue
             }
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .black, location: 0.25),
-                        .init(color: .black, location: 0.75),
-                        .init(color: .clear, location: 1)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
+            .compositingGroup()
+            .mask {
+                HStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [.clear, .black],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: edgeFadeWidth)
+                    Color.black
+                        .frame(maxWidth: .infinity)
+                    LinearGradient(
+                        colors: [.black, .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: edgeFadeWidth)
+                }
+            }
             .onAppear {
                 viewportWidth = geo.size.width
                 position.scrollTo(x: offsetX(for: selectedDate))
@@ -101,12 +110,16 @@ private struct NumberStrip: View {
             Text(date.formatted(.dateTime.day()))
                 .font(.system(size: isSelected ? 20 : 15,
                               weight: isToday ? .bold : .regular))
-                .foregroundStyle(isSelected ? Color.primary : Color(white: 0.72))
+                .foregroundStyle(
+                    isSelected
+                        ? Color.primary
+                        : Color.primary.opacity(isToday ? 0.52 : 0.38)
+                )
                 .frame(width: itemWidth)
 
             Circle()
                 .frame(width: 3, height: 3)
-                .foregroundStyle(Color.primary.opacity(isToday ? 0.4 : 0))
+                .foregroundStyle(Color.primary.opacity(isToday && isSelected ? 0.55 : (isToday ? 0.35 : 0)))
         }
         .contentShape(Rectangle())
         .onTapGesture { selectedDate = date }

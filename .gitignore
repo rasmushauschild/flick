@@ -1,6 +1,7 @@
 # Xcode
 build/
 DerivedData/
+.derivedData/
 *.pbxuser
 !default.pbxuser
 *.mode1v3
