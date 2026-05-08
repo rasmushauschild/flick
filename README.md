@@ -47,7 +47,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
       When you drag the panel out, Flick can float above your other apps so your notes are always within reach.
     </td>
     <td width="40%">
-      <img src="assets/gifs/stays%20on%20top.gif" alt="Flick floating window" width="85%" />
+      <img src="assets/gifs/stays%20on%20top.gif" alt="Flick floating window" width="100%" />
     </td>
   </tr>
 </table>
