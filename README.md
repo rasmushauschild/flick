@@ -1,38 +1,49 @@
-# Flick
+# Flick, a daily notes app
 
-A minimalist macOS menu bar app for daily notes and todos.
-
-Click the menu bar icon and a small panel drops down anchored to today's date. Each day has its own page with three kinds of blocks: titles, notes, and todos. Drag the panel out and it stays floating on top of everything. All your data is stored locally as JSON.
+Flick is a focused macOS notes app that lives in your menu bar, keeps daily notes organized automatically, and stays out of your way until you need it.
 
 ## Features
 
-- 📅 Per-day pages with a horizontal date scrubber
-- 🧩 Three block types: title, note, and todo (with strike-through when checked)
-- ✏️ A single `NSTextView` editor — native cross-paragraph text selection, cut/copy/paste, find, undo
-- 🌫️ Optional frosted-glass background
-- 🚀 Optional launch-at-startup
-- 🔒 Local-only storage at `~/Library/Application Support/Flick/pages.json`
+### Menu bar first, window when you want
+Flick lives in your menu bar and can be dragged out into its own window whenever you want more space.
 
-## Requirements
+![Flick menu bar and draggable window](../gifs/lives%20in%20your%20menu%20bar.gif)
 
-- macOS 15.7 or later
-- Xcode 26+
+### Automatic daily pages with smooth scrubbing
+Each day gets its own page automatically, and you can quickly scrub through dates with a satisfying timeline feel.
 
-## Build & Run
+![Flick date scrubber](../gifs/Dates%20scroller.gif)
 
-1. Open `Flick.xcodeproj` in Xcode
-2. Press ⌘R
+### Exactly the block types you need
+Keep things simple with three block types: title, text, and todo.
 
-The Flick icon appears in the menu bar; click it to open the panel.
+![Flick block types](../gifs/fonts.gif)
 
-## Tests
+### Floating window that stays on top
+When you drag the panel out, Flick can float above your other apps so your notes are always within reach.
 
-UI tests live in `FlickUITests/`. Run them in Xcode with ⌘U, or from the command line:
+![Flick floating window](../gifs/stays%20on%20top.gif)
+
+### Looks great in light and dark mode
+Flick matches your system appearance and feels at home in both light and dark themes.
+
+![Flick light and dark appearance](../gifs/Light%20or%20Dark.gif)
+
+### A home for permanent notes and links
+Use the permanent notes space for long-term notes, link collections, and your best ideas.
+
+![Flick permanent notes](../gifs/permanent%20notes.gif)
+
+## Build and Run
+
+1. Open `Flick.xcodeproj` in Xcode.
+2. Select the `Flick` scheme.
+3. Press `⌘R` to build and run.
+
+Or run from Terminal:
 
 ```bash
-xcodebuild -project Flick.xcodeproj -scheme Flick -configuration Debug test
+xcodebuild -project Flick.xcodeproj -scheme Flick -configuration Debug build
 ```
 
-## License
-
-[MIT](LICENSE)
+Hope you enjoy using Flick.

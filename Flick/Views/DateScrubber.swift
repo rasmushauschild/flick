@@ -41,7 +41,7 @@ private struct NumberStrip: View {
 
     private let today = Calendar.current.startOfDay(for: Date())
     private let cellWidth: CGFloat = 28
-    private let spacing: CGFloat = 18
+    private let spacing: CGFloat = 16
     private let unselectedFontSize: CGFloat = 15
     private let selectedFontSize: CGFloat = 20
     /// Programmatic scroll-to-day — paired with `CATransaction` so AppKit honors a slow glide.
