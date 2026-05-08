@@ -7,7 +7,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### Menu bar first, window when you want
 <table>
   <tr>
-    <td width="28%">
+    <td width="50%">
       Flick lives in your menu bar and can be dragged out into its own window whenever you want more space.
     </td>
     <td width="50%">
@@ -19,7 +19,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### Automatic daily pages with smooth scrubbing
 <table>
   <tr>
-    <td width="28%">
+    <td width="50%">
       Each day gets its own page automatically, and you can quickly scrub through dates with satisfying haptic feedback.
     </td>
     <td width="50%">
@@ -31,7 +31,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### Exactly the block types you need
 <table>
   <tr>
-    <td width="28%">
+    <td width="50%">
       Keep things simple with three block types: title, text, and todo.
     </td>
     <td width="50%">
@@ -43,7 +43,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### Floating window that stays on top
 <table>
   <tr>
-    <td width="28%">
+    <td width="50%">
       When you drag the panel out, Flick can float above your other apps so your notes are always within reach.
     </td>
     <td width="50%">
@@ -55,7 +55,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### Looks great in light and dark mode
 <table>
   <tr>
-    <td width="28%">
+    <td width="50%">
       Flick matches your system appearance and feels at home in both light and dark themes.
     </td>
     <td width="50%">
@@ -67,7 +67,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### A home for permanent notes and links
 <table>
   <tr>
-    <td width="28%">
+    <td width="50%">
       Use the permanent notes space for long-term notes, link collections, and your best ideas.
     </td>
     <td width="50%">
