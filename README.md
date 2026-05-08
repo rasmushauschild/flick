@@ -7,11 +7,11 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### Menu bar first, window when you want
 <table>
   <tr>
-    <td width="42%">
+    <td width="28%">
       Flick lives in your menu bar and can be dragged out into its own window whenever you want more space.
     </td>
-    <td width="58%">
-      <img src="assets/gifs/lives%20in%20your%20menu%20bar.gif" alt="Flick menu bar and draggable window" height="300" />
+    <td width="72%">
+      <img src="assets/gifs/lives%20in%20your%20menu%20bar.gif" alt="Flick menu bar and draggable window" />
     </td>
   </tr>
 </table>
@@ -19,11 +19,11 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### Automatic daily pages with smooth scrubbing
 <table>
   <tr>
-    <td width="42%">
+    <td width="28%">
       Each day gets its own page automatically, and you can quickly scrub through dates with satisfying haptic feedback.
     </td>
-    <td width="58%">
-      <img src="assets/gifs/Dates%20scroller.gif" alt="Flick date scrubber" height="300" />
+    <td width="72%">
+      <img src="assets/gifs/Dates%20scroller.gif" alt="Flick date scrubber" />
     </td>
   </tr>
 </table>
@@ -31,11 +31,11 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### Exactly the block types you need
 <table>
   <tr>
-    <td width="42%">
+    <td width="28%">
       Keep things simple with three block types: title, text, and todo.
     </td>
-    <td width="58%">
-      <img src="assets/gifs/fonts.gif" alt="Flick block types" height="300" />
+    <td width="72%">
+      <img src="assets/gifs/fonts.gif" alt="Flick block types" />
     </td>
   </tr>
 </table>
@@ -43,11 +43,11 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### Floating window that stays on top
 <table>
   <tr>
-    <td width="42%">
+    <td width="28%">
       When you drag the panel out, Flick can float above your other apps so your notes are always within reach.
     </td>
-    <td width="58%">
-      <img src="assets/gifs/stays%20on%20top.gif" alt="Flick floating window" height="300" />
+    <td width="72%">
+      <img src="assets/gifs/stays%20on%20top.gif" alt="Flick floating window" />
     </td>
   </tr>
 </table>
@@ -55,11 +55,11 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### Looks great in light and dark mode
 <table>
   <tr>
-    <td width="42%">
+    <td width="28%">
       Flick matches your system appearance and feels at home in both light and dark themes.
     </td>
-    <td width="58%">
-      <img src="assets/gifs/Light%20or%20Dark.gif" alt="Flick light and dark appearance" height="300" />
+    <td width="72%">
+      <img src="assets/gifs/Light%20or%20Dark.gif" alt="Flick light and dark appearance" />
     </td>
   </tr>
 </table>
@@ -67,11 +67,11 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
 ### A home for permanent notes and links
 <table>
   <tr>
-    <td width="42%">
+    <td width="28%">
       Use the permanent notes space for long-term notes, link collections, and your best ideas.
     </td>
-    <td width="58%">
-      <img src="assets/gifs/permanent%20notes.gif" alt="Flick permanent notes" height="300" />
+    <td width="72%">
+      <img src="assets/gifs/permanent%20notes.gif" alt="Flick permanent notes" />
     </td>
   </tr>
 </table>
