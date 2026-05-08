@@ -23,7 +23,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
       Each day gets its own page automatically, and you can quickly scrub through dates with satisfying haptic feedback.
     </td>
     <td width="50%">
-      <img src="assets/gifs/Dates%20scroller.gif" alt="Flick date scrubber" width="50%" />
+      <img src="assets/gifs/Dates%20scroller.gif" alt="Flick date scrubber" width="75%" />
     </td>
   </tr>
 </table>
@@ -35,7 +35,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
       Keep things simple with three block types: title, text, and todo.
     </td>
     <td width="50%">
-      <img src="assets/gifs/fonts.gif" alt="Flick block types" width="50%" />
+      <img src="assets/gifs/fonts.gif" alt="Flick block types" width="75%" />
     </td>
   </tr>
 </table>
@@ -47,7 +47,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
       When you drag the panel out, Flick can float above your other apps so your notes are always within reach.
     </td>
     <td width="50%">
-      <img src="assets/gifs/stays%20on%20top.gif" alt="Flick floating window" width="50%" />
+      <img src="assets/gifs/stays%20on%20top.gif" alt="Flick floating window" width="75%" />
     </td>
   </tr>
 </table>
@@ -59,7 +59,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
       Flick matches your system appearance and feels at home in both light and dark themes.
     </td>
     <td width="50%">
-      <img src="assets/gifs/Light%20or%20Dark.gif" alt="Flick light and dark appearance" width="50%" />
+      <img src="assets/gifs/Light%20or%20Dark.gif" alt="Flick light and dark appearance" width="75%" />
     </td>
   </tr>
 </table>
@@ -71,7 +71,7 @@ Flick is a focused macOS notes app that lives in your menu bar, keeps daily note
       Use the permanent notes space for long-term notes, link collections, and your best ideas.
     </td>
     <td width="50%">
-      <img src="assets/gifs/permanent%20notes.gif" alt="Flick permanent notes" width="50%" />
+      <img src="assets/gifs/permanent%20notes.gif" alt="Flick permanent notes" width="75%" />
     </td>
   </tr>
 </table>
