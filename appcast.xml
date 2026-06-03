@@ -1,10 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>Flick</title>
         <link>https://github.com/rasmushauschild/flick</link>
         <description>Flick release feed</description>
         <language>en</language>
-        <!-- Items are appended by scripts/release.sh or the GitHub Actions release workflow. -->
+        
+    <item>
+            <title>1.0.0</title>
+            <pubDate>Tue, 02 Jun 2026 20:22:19 -0700</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.7</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/rasmushauschild/flick/releases/download/v1.0.0/Flick-1.0.0.zip" length="2999767" type="application/octet-stream" sparkle:edSignature="zwuyjOvMsI/BV/SjLUDk3+NV1/GpCfs6kiHug0qinV7nYFbFCOKR9FUAQUapb3IUXnZS6KbkQG9PRgnco2CHDw==" />
+        </item>
     </channel>
 </rss>
