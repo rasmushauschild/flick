@@ -38,6 +38,9 @@ fastlane/test_output
 # macOS
 .DS_Store
 
-# Misc
-*.swp
-*~
+# Sparkle / release tooling
+build/
+*.p12
+AuthKey.p8
+ed25519*
+.sparkle/

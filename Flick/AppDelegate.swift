@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
 /// Borderless windows are not key by default; without key status the editor stays disabled for UI tests and typing.
@@ -34,6 +35,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var isProgrammaticMove = false
     private var clickOutsideMonitor: Any?
     private var keyMonitor: Any?
+    private var updaterController: SPUStandardUpdaterController?
+
+    private var isUITesting: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-testing")
+    }
 
     let store = Store()
     let settings = AppSettings()
@@ -41,6 +47,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let windowDockState = WindowDockState()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if !isUITesting {
+            updaterController = SPUStandardUpdaterController(
+                startingUpdater: true,
+                updaterDelegate: nil,
+                userDriverDelegate: nil
+            )
+        }
+
         setupStatusItem()
         setupWindow()
         setupKeyMonitor()
@@ -48,7 +62,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         // UI test bootstrap: auto-show the window so the test runner doesn't have to
         // click the menu bar icon (which is awkward to automate).
-        if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+        if isUITesting {
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.isDocked = false
@@ -112,6 +126,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         launch.state = settings.launchAtStartup ? .on : .off
         menu.addItem(launch)
 
+        if updaterController != nil {
+            menu.addItem(.separator())
+
+            let updates = NSMenuItem(
+                title: "Check for Updates…",
+                action: #selector(checkForUpdates),
+                keyEquivalent: ""
+            )
+            updates.target = self
+            menu.addItem(updates)
+        }
+
         menu.addItem(.separator())
 
         let quit = NSMenuItem(
@@ -130,6 +156,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc private func toggleLaunchAtStartup() {
         settings.launchAtStartup.toggle()
+    }
+
+    @objc private func checkForUpdates() {
+        updaterController?.checkForUpdates(nil)
     }
 
     @objc private func toggleWindow() {

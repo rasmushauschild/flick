@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>Flick</title>
+        <link>https://github.com/rasmushauschild/flick</link>
+        <description>Flick release feed</description>
+        <language>en</language>
+        <!-- Items are appended by scripts/release.sh or the GitHub Actions release workflow. -->
+    </channel>
+</rss>
