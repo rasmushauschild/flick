@@ -2,6 +2,18 @@
 
 Flick is a focused macOS notes app that lives in your menu bar, keeps daily notes organized automatically, and stays out of your way until you need it.
 
+## Download
+
+**[Download Flick for macOS](https://github.com/rasmushauschild/flick/releases/latest)** — get the latest `Flick.dmg` from [Releases](https://github.com/rasmushauschild/flick/releases).
+
+**Requirements:** macOS 15.7 or later.
+
+1. Download and open `Flick.dmg`.
+2. Drag **Flick** into **Applications**.
+3. Open Flick from Applications. If macOS blocks the first launch, right-click the app and choose **Open**.
+
+Installed copies update in place automatically (menu bar icon → right-click → **Check for Updates…**).
+
 ## Features
 
 ### Menu bar first, window when you want
